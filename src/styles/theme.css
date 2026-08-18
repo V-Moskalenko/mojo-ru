@@ -1,0 +1,534 @@
+/* ==========================================================================
+   Mojo по-русски — дизайн-система
+   Тёплая тёмная тема по умолчанию, огненный акцент Mojo, типографика под
+   длинные технические тексты на кириллице.
+   ========================================================================== */
+
+:root {
+  /* --- Акцент: огонь Mojo, приглушённый до читаемого --- */
+  --sl-color-accent-low: #4a2008;
+  --sl-color-accent: #d4530b;
+  --sl-color-accent-high: #ffbe98;
+
+  /* --- Нейтральные: тёплый тёмно-серый вместо холодного чёрного --- */
+  --sl-color-white: #fdfaf7;
+  --sl-color-gray-1: #efe9e4;
+  --sl-color-gray-2: #c6bfb9;
+  --sl-color-gray-3: #9a918a;
+  --sl-color-gray-4: #675f59;
+  --sl-color-gray-5: #433d38;
+  --sl-color-gray-6: #2a2521;
+  --sl-color-gray-7: #1e1a17;
+  --sl-color-black: #14110f;
+
+  /* --- Типографика --- */
+  --sl-font: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sl-font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --sl-text-body: 1.0625rem;
+  --sl-line-height: 1.75;
+  --sl-content-width: 47rem;
+
+  /* --- Семантические цвета проекта --- */
+  --mojo-flame: #ff7a2f;
+  --mojo-flame-soft: rgba(255, 122, 47, 0.12);
+  --mojo-python: #4b8bbe;
+  --mojo-python-soft: rgba(75, 139, 190, 0.12);
+  --mojo-ok: #4ba36b;
+  --mojo-warn: #d99b28;
+  --mojo-danger: #d9534f;
+  --mojo-radius: 0.7rem;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #ffe2cf;
+  --sl-color-accent: #b8430a;
+  --sl-color-accent-high: #6b2604;
+
+  --sl-color-white: #1a1613;
+  --sl-color-gray-1: #2b2521;
+  --sl-color-gray-2: #453e38;
+  --sl-color-gray-3: #6b625b;
+  --sl-color-gray-4: #978d85;
+  --sl-color-gray-5: #cfc6bf;
+  --sl-color-gray-6: #e9e2dc;
+  --sl-color-gray-7: #f4efeb;
+  --sl-color-black: #fffdfb;
+
+  --mojo-flame: #c2410c;
+  --mojo-flame-soft: rgba(194, 65, 12, 0.09);
+  --mojo-python-soft: rgba(75, 139, 190, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   Базовая типографика
+   -------------------------------------------------------------------------- */
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings:
+    'kern' 1,
+    'liga' 1,
+    'calt' 1;
+}
+
+.sl-markdown-content {
+  font-size: var(--sl-text-body);
+  line-height: var(--sl-line-height);
+  hyphens: auto;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4 {
+  letter-spacing: -0.015em;
+  font-weight: 650;
+  hyphens: none;
+}
+
+.sl-markdown-content h2 {
+  margin-top: 2.75rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--sl-color-gray-6);
+}
+
+.sl-markdown-content h2:first-of-type {
+  border-top: none;
+}
+
+.sl-markdown-content :is(p, li) code:not(:where(.expressive-code *)) {
+  background: var(--mojo-flame-soft);
+  color: var(--sl-color-white);
+  border: 1px solid var(--sl-color-gray-6);
+  border-radius: 0.35rem;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+  text-underline-offset: 0.25em;
+  text-decoration-thickness: 1px;
+}
+
+/* Таблицы читаются как таблицы, а не как каша */
+.sl-markdown-content table {
+  font-size: 0.95rem;
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+}
+
+.sl-markdown-content :is(th, td) {
+  border: 1px solid var(--sl-color-gray-6);
+  padding: 0.55rem 0.8rem;
+}
+
+.sl-markdown-content th {
+  background: var(--sl-color-gray-7);
+  text-align: left;
+}
+
+/* Блоки кода — воздух вокруг и мягкая рамка */
+.expressive-code {
+  margin-block: 1.25rem;
+}
+
+/* --------------------------------------------------------------------------
+   Шапка и навигация
+   -------------------------------------------------------------------------- */
+
+header.header {
+  border-bottom: 1px solid var(--sl-color-gray-6);
+  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--sl-color-bg) 88%, transparent);
+}
+
+.site-title {
+  font-weight: 680;
+  letter-spacing: -0.02em;
+}
+
+/* --------------------------------------------------------------------------
+   Компонент: блок вывода программы  <Result>
+   -------------------------------------------------------------------------- */
+
+.mojo-result {
+  margin: -0.5rem 0 1.5rem;
+  border: 1px solid var(--sl-color-gray-6);
+  border-top: none;
+  border-radius: 0 0 var(--mojo-radius) var(--mojo-radius);
+  background: var(--sl-color-gray-7);
+  overflow: hidden;
+}
+
+.mojo-result__label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+  background: var(--sl-color-gray-6);
+}
+
+.mojo-result__label::before {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--mojo-ok);
+}
+
+.mojo-result pre {
+  margin: 0;
+  padding: 0.9rem;
+  font-family: var(--sl-font-mono);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--sl-color-gray-1);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* --------------------------------------------------------------------------
+   Компонент: сравнение Python и Mojo  <PyMojo>
+   -------------------------------------------------------------------------- */
+
+.py-mojo {
+  display: grid;
+  gap: 0.75rem;
+  margin-block: 1.5rem;
+}
+
+@media (min-width: 60rem) {
+  .py-mojo {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.py-mojo__col {
+  min-width: 0;
+  border: 1px solid var(--sl-color-gray-6);
+  border-radius: var(--mojo-radius);
+  overflow: hidden;
+}
+
+.py-mojo__head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.py-mojo__col--py .py-mojo__head {
+  background: var(--mojo-python-soft);
+  color: var(--sl-color-white);
+  border-bottom: 1px solid var(--sl-color-gray-6);
+}
+
+.py-mojo__col--mojo .py-mojo__head {
+  background: var(--mojo-flame-soft);
+  color: var(--sl-color-white);
+  border-bottom: 1px solid var(--sl-color-gray-6);
+}
+
+.py-mojo__body > .expressive-code {
+  margin: 0;
+}
+
+.py-mojo__body .expressive-code .frame pre {
+  border: none;
+  border-radius: 0;
+}
+
+.py-mojo__note {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.92rem;
+  border-left: 3px solid var(--mojo-flame);
+  background: var(--sl-color-gray-7);
+  border-radius: 0 var(--mojo-radius) var(--mojo-radius) 0;
+}
+
+/* --------------------------------------------------------------------------
+   Компонент: проверь себя  <Quiz>
+   -------------------------------------------------------------------------- */
+
+.mojo-quiz {
+  margin-block: 2rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--sl-color-gray-6);
+  border-radius: var(--mojo-radius);
+  background: var(--sl-color-gray-7);
+}
+
+.mojo-quiz__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.mojo-quiz details {
+  border-top: 1px solid var(--sl-color-gray-6);
+  padding: 0.6rem 0;
+}
+
+.mojo-quiz details:last-child {
+  padding-bottom: 0;
+}
+
+.mojo-quiz summary {
+  cursor: pointer;
+  font-weight: 550;
+  list-style: none;
+  display: flex;
+  gap: 0.55rem;
+  align-items: baseline;
+}
+
+.mojo-quiz summary::-webkit-details-marker {
+  display: none;
+}
+
+.mojo-quiz summary::before {
+  content: '?';
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  background: var(--mojo-flame-soft);
+  color: var(--mojo-flame);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.mojo-quiz details[open] summary::before {
+  content: '!';
+}
+
+.mojo-quiz details > *:not(summary) {
+  margin-left: 1.9rem;
+  font-size: 0.95rem;
+}
+
+/* --------------------------------------------------------------------------
+   Компонент: карточка ошибки компилятора  <CompilerError>
+   -------------------------------------------------------------------------- */
+
+.mojo-error {
+  margin-block: 1.5rem;
+  border: 1px solid var(--sl-color-gray-6);
+  border-left: 3px solid var(--mojo-danger);
+  border-radius: 0 var(--mojo-radius) var(--mojo-radius) 0;
+  overflow: hidden;
+}
+
+.mojo-error__msg {
+  margin: 0;
+  padding: 0.8rem 1rem;
+  font-family: var(--sl-font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: color-mix(in srgb, var(--mojo-danger) 10%, transparent);
+  color: var(--sl-color-white);
+}
+
+.mojo-error__section {
+  padding: 0.7rem 1rem;
+  border-top: 1px solid var(--sl-color-gray-6);
+  font-size: 0.95rem;
+}
+
+.mojo-error__section > strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+
+.mojo-error__section > *:last-child {
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Подвал: бейдж версии
+   -------------------------------------------------------------------------- */
+
+.mojo-version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--sl-color-gray-6);
+  border-radius: 2rem;
+  font-size: 0.78rem;
+  color: var(--sl-color-gray-3);
+  background: var(--sl-color-gray-7);
+}
+
+.mojo-version-badge__dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--mojo-ok);
+}
+
+/* --------------------------------------------------------------------------
+   Главная страница
+   -------------------------------------------------------------------------- */
+
+.hero {
+  padding-block: 1rem 2rem;
+}
+
+.hero h1 {
+  letter-spacing: -0.03em;
+  background: linear-gradient(100deg, var(--sl-color-white) 30%, var(--mojo-flame));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero .tagline {
+  font-size: 1.15rem;
+  max-width: 34ch;
+}
+
+.card-grid .card {
+  border-radius: var(--mojo-radius);
+  border-color: var(--sl-color-gray-6);
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.card-grid .card:hover {
+  border-color: var(--mojo-flame);
+  transform: translateY(-2px);
+}
+
+.card-grid .card .title {
+  color: var(--sl-color-white);
+}
+
+/* --------------------------------------------------------------------------
+   Мелочи, которые чинят кириллицу и мобильные
+   -------------------------------------------------------------------------- */
+
+/* Длинные слова в узкой колонке не должны разрывать вёрстку */
+.sl-markdown-content :is(h1, h2, h3, h4) {
+  overflow-wrap: break-word;
+}
+
+/* Код на телефоне скроллится, а не обрезается */
+@media (max-width: 50rem) {
+  .expressive-code .frame pre {
+    font-size: 0.8rem;
+  }
+}
+
+/* Уважаем настройку «уменьшить движение» */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Выносные блоки (Aside) — перекрашены под палитру проекта.
+   Стандартные фиолетовый и синий выбиваются из огненной гаммы.
+   -------------------------------------------------------------------------- */
+
+.starlight-aside {
+  border-radius: 0 var(--mojo-radius) var(--mojo-radius) 0;
+  border-inline-start-width: 3px;
+  padding: 0.9rem 1.1rem;
+}
+
+.starlight-aside--note {
+  --sl-color-asides-text-accent: var(--sl-color-gray-2);
+  --sl-color-asides-border: var(--sl-color-gray-4);
+  background-color: var(--sl-color-gray-7);
+}
+
+.starlight-aside--tip {
+  --sl-color-asides-text-accent: var(--mojo-flame);
+  --sl-color-asides-border: var(--mojo-flame);
+  background-color: var(--mojo-flame-soft);
+}
+
+.starlight-aside--caution {
+  --sl-color-asides-text-accent: var(--mojo-warn);
+  --sl-color-asides-border: var(--mojo-warn);
+  background-color: color-mix(in srgb, var(--mojo-warn) 12%, transparent);
+}
+
+.starlight-aside--danger {
+  --sl-color-asides-text-accent: var(--mojo-danger);
+  --sl-color-asides-border: var(--mojo-danger);
+  background-color: color-mix(in srgb, var(--mojo-danger) 12%, transparent);
+}
+
+.starlight-aside__title {
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+}
+
+.starlight-aside__content {
+  font-size: 0.97rem;
+}
+
+.starlight-aside__content > *:last-child {
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Бейджи в боковой панели: «в работе» не должно кричать громче названия главы
+   -------------------------------------------------------------------------- */
+
+.sidebar-content .sl-badge {
+  border-radius: 1rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 0.05rem 0.45rem;
+  border-color: var(--sl-color-gray-5);
+  background: transparent;
+  color: var(--sl-color-gray-3);
+  opacity: 0.85;
+}
+
+.sidebar-content .sl-badge.caution {
+  border-color: var(--mojo-warn);
+  color: var(--mojo-warn);
+  opacity: 1;
+}
+
+/* Активный пункт меню — заметный, но не кричащий */
+.sidebar-content a[aria-current='page'] {
+  background: var(--mojo-flame-soft);
+  color: var(--sl-color-white);
+  border-inline-start: 2px solid var(--mojo-flame);
+  border-radius: 0 0.35rem 0.35rem 0;
+}

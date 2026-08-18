@@ -1,0 +1,41 @@
+---
+title: Mojo in Russian
+description: A free, complete Mojo 1.0 course written in Russian — from installing on Windows via WSL to SIMD and real projects.
+template: splash
+hero:
+  tagline: A complete Mojo 1.0 course for Russian speakers. The English edition is planned — the site is already wired for it.
+  image:
+    file: ../../../assets/logo.svg
+  actions:
+    - text: Read in Russian
+      link: /
+      icon: right-arrow
+      variant: primary
+    - text: GitHub
+      link: https://github.com/mojo-ru/mojo-ru
+      icon: external
+      variant: minimal
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="note" title="English edition is on the roadmap">
+  This project is a free, community-run Mojo 1.0 course written in Russian.
+  The site is built with i18n from day one, so English pages can be added
+  without restructuring anything — pages that do not exist in English yet
+  fall back to the Russian original.
+
+  If you would like to help translate, open an issue in the repository.
+</Aside>
+
+## What makes this course different
+
+- **Deliberate Russian terminology.** Every term is decided once and used
+  consistently across all pages, with the English original shown on first use.
+- **Windows is a first-class citizen.** Mojo does not run on Windows natively,
+  only through WSL. That gets a full chapter here, not a footnote.
+- **Every code sample compiles.** Examples live as real `.mojo` files in the
+  repository and are compiled and run in CI against the pinned Mojo version.
+- **Built on the official manual.** Theory is checked against Modular's
+  documentation, and constructs deprecated before 1.0 (`fn`, `let`, `inout`,
+  `@value`) are called out explicitly.

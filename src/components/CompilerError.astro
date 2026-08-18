@@ -1,0 +1,28 @@
+---
+/**
+ * Карточка ошибки компилятора: текст ошибки → что она значит по-русски → как чинить.
+ *
+ * <CompilerError msg="error: ...">
+ *   <Fragment slot="meaning">Компилятор говорит, что ...</Fragment>
+ *   <Fragment slot="fix">Добавьте ...</Fragment>
+ * </CompilerError>
+ */
+interface Props {
+  /** Дословный текст ошибки, как его печатает Mojo. */
+  msg: string;
+}
+
+const { msg } = Astro.props;
+---
+
+<div class="mojo-error not-content">
+  <pre class="mojo-error__msg">{msg}</pre>
+  <div class="mojo-error__section">
+    <strong>Что это значит</strong>
+    <slot name="meaning" />
+  </div>
+  <div class="mojo-error__section">
+    <strong>Как исправить</strong>
+    <slot name="fix" />
+  </div>
+</div>

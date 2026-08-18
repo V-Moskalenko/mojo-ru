@@ -1,0 +1,39 @@
+name: Пример кода не работает
+description: Код со страницы не компилируется или ведёт себя иначе
+title: '[код] '
+labels: ['контент', 'примеры']
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Страница
+      placeholder: /basics/first-program/
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия Mojo
+      description: Вывод команды `mojo --version`
+      placeholder: '1.0.0'
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Операционная система
+      options:
+        - Windows + WSL
+        - Linux
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Что выдаёт компилятор
+      description: Полный текст ошибки
+      render: text
+    validations:
+      required: true

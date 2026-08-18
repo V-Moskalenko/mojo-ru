@@ -1,0 +1,8 @@
+Код сайта и код примеров курса «Mojo по-русски» распространяются
+по лицензии Apache License 2.0.
+
+Полный текст: https://www.apache.org/licenses/LICENSE-2.0
+
+Отдельно: TextMate-грамматика Mojo в src/grammars/ взята из проекта
+modular/vscode-mojo и распространяется по той же лицензии Apache 2.0.
+Копия лицензии сохранена в src/grammars/LICENSE-vscode-mojo.txt

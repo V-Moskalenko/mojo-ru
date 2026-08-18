@@ -1,0 +1,31 @@
+name: Ошибка или неточность в тексте
+description: Опечатка, неверный факт, непонятное объяснение
+title: '[текст] '
+labels: ['контент']
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Страница
+      description: Ссылка на страницу сайта или путь к файлу
+      placeholder: /install/windows-wsl/
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Что не так
+      description: Процитируйте фрагмент и объясните, в чём проблема
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Как лучше
+      description: Если есть готовая формулировка — предложите её
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверки
+      options:
+        - label: Я посмотрел, нет ли уже такого issue

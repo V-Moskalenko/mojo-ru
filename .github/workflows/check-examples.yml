@@ -1,0 +1,47 @@
+name: Проверка примеров на реальном Mojo
+
+# Главная защита проекта от устаревания: каждый пример курса компилируется
+# и запускается настоящим компилятором Mojo. Если язык обновится и что-то
+# сломается — красный CI сообщит об этом раньше, чем читатель.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/**'
+      - 'scripts/check-examples.mjs'
+      - '.github/workflows/check-examples.yml'
+  pull_request:
+    paths:
+      - 'examples/**'
+  schedule:
+    # каждый понедельник в 06:00 UTC — ловим обновления Mojo, даже если
+    # в репозиторий никто ничего не коммитил
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  examples:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Установить uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Установить Mojo
+        run: |
+          uv init --bare ci-env
+          cd ci-env
+          uv add mojo
+          echo "MOJO_CMD=$PWD/.venv/bin/mojo" >> "$GITHUB_ENV"
+
+      - name: Показать версию Mojo
+        run: $MOJO_CMD --version
+
+      - name: Прогнать все примеры
+        run: node scripts/check-examples.mjs

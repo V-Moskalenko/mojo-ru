@@ -1,0 +1,21 @@
+---
+import Default from '@astrojs/starlight/components/Hero.astro';
+import { withBase } from '../utils/link';
+
+/**
+ * Обёртка над стандартным Hero: кнопки на главной задаются во frontmatter
+ * обычной строкой, и базовый путь сайта в них не подставляется автоматически.
+ * Здесь мы это чиним — чтобы на GitHub Pages кнопки вели куда надо.
+ */
+const route = Astro.locals.starlightRoute;
+const hero = route?.entry?.data?.hero;
+
+if (hero?.actions?.length) {
+  hero.actions = hero.actions.map((action) => ({
+    ...action,
+    link: withBase(action.link),
+  }));
+}
+---
+
+<Default><slot /></Default>

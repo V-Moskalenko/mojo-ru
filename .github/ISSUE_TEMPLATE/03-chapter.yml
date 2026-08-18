@@ -1,0 +1,22 @@
+name: Предложить или запросить главу
+description: Не хватает темы, или вы готовы написать главу
+title: '[глава] '
+labels: ['контент', 'новая глава']
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Что именно
+      options:
+        - Нужна тема, которой нет в плане
+        - Хочу написать главу из плана
+        - Хочу ускорить главу, которая ещё «в работе»
+    validations:
+      required: true
+  - type: textarea
+    id: topic
+    attributes:
+      label: Тема
+      description: Что должно быть в главе и зачем это читателю
+    validations:
+      required: true

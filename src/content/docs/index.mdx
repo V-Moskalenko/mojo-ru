@@ -1,0 +1,82 @@
+---
+title: Mojo по-русски
+description: Бесплатный полный курс по языку программирования Mojo 1.0 на русском языке — от установки на Windows через WSL до SIMD и практических проектов.
+template: splash
+hero:
+  tagline: Полный курс по языку Mojo 1.0 на русском языке. От «у меня Windows и я ничего не понимаю» до собственной библиотеки с SIMD.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Начать с установки
+      link: /install/windows-wsl/
+      icon: right-arrow
+      variant: primary
+    - text: Зачем нужен Mojo
+      link: /start/why-mojo/
+      icon: open-book
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+import { withBase } from '../../utils/link';
+
+<Aside type="tip" title="Актуально на сегодня">
+  Курс написан под **Mojo 1.0** — первый стабильный релиз языка, вышедший
+  в августе 2026 года. Весь код проверяется автоматически на реальном
+  компиляторе: если пример перестанет собираться, мы узнаем об этом раньше вас.
+</Aside>
+
+## Почему этот курс
+
+<CardGrid>
+  <Card title="Русский язык без машинного перевода" icon="translate">
+    Термины подобраны осознанно и используются одинаково на всех страницах.
+    При первом упоминании — русский вариант и оригинал в скобках, чтобы вы
+    могли гуглить на английском и читать официальную документацию.
+  </Card>
+  <Card title="Windows — полноценная платформа" icon="laptop">
+    Mojo не работает в Windows напрямую, только через WSL. Здесь это не
+    сноска мелким шрифтом, а отдельная большая глава: WSL2, uv, VS Code
+    Remote, SSH-ключи и разбор типичных ошибок установки.
+  </Card>
+  <Card title="Код, который компилируется" icon="approve-check">
+    Каждый пример лежит в репозитории отдельным файлом и прогоняется в CI.
+    Под примерами показан настоящий вывод программы, а не придуманный.
+  </Card>
+  <Card title="Опора на официальный источник" icon="document">
+    Теория сверена с официальным мануалом Modular. Мы отдельно отмечаем
+    конструкции, которые устарели: `fn`, `let`, `inout`, `@value` —
+    в интернете полно статей, где они ещё живы.
+  </Card>
+</CardGrid>
+
+## С чего начать
+
+<CardGrid>
+  <LinkCard
+    title="У меня Windows"
+    href={withBase('/install/windows-wsl/')}
+    description="Ставим WSL2, Ubuntu, uv и Mojo. Настраиваем VS Code так, чтобы автодополнение и отладчик работали."
+  />
+  <LinkCard
+    title="Я пишу на Python"
+    href={withBase('/python-to-mojo/common/')}
+    description="Что вы уже знаете, что придётся переучить и почему типы в Mojo — не бюрократия."
+  />
+  <LinkCard
+    title="Хочу понять, зачем это всё"
+    href={withBase('/start/why-mojo/')}
+    description="Честное сравнение с Python, C++ и Rust. Что на Mojo реально можно писать сегодня."
+  />
+  <LinkCard
+    title="Термины на русском"
+    href={withBase('/reference/glossary/')}
+    description="Владение, заимствование, origin, трейт, параметр против аргумента — единый словарь курса."
+  />
+</CardGrid>
+
+<Aside type="note" title="Проект открытый">
+  Курс бесплатный и развивается открыто. Нашли ошибку или неточность —
+  на каждой странице внизу есть ссылка «Редактировать страницу».
+  Материалы курса распространяются под лицензией CC BY 4.0, код примеров — Apache 2.0.
+</Aside>

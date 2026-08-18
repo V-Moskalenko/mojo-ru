@@ -1,0 +1,38 @@
+---
+/**
+ * Сравнение «как в Python» и «как в Mojo» бок о бок.
+ * Главный обучающий приём сайта: читатель приходит из Python и должен
+ * увидеть разницу глазами, а не вычитать её из абзаца текста.
+ *
+ * <PyMojo>
+ *   <Fragment slot="python">```python ... ```</Fragment>
+ *   <Fragment slot="mojo">```mojo ... ```</Fragment>
+ *   <Fragment slot="note">Что именно изменилось и почему.</Fragment>
+ * </PyMojo>
+ */
+interface Props {
+  pythonLabel?: string;
+  mojoLabel?: string;
+}
+
+const { pythonLabel = 'Python', mojoLabel = 'Mojo' } = Astro.props;
+const hasNote = Astro.slots.has('note');
+---
+
+<div class="py-mojo not-content">
+  <div class="py-mojo__col py-mojo__col--py">
+    <div class="py-mojo__head">🐍 {pythonLabel}</div>
+    <div class="py-mojo__body"><slot name="python" /></div>
+  </div>
+  <div class="py-mojo__col py-mojo__col--mojo">
+    <div class="py-mojo__head">🔥 {mojoLabel}</div>
+    <div class="py-mojo__body"><slot name="mojo" /></div>
+  </div>
+  {
+    hasNote && (
+      <div class="py-mojo__note">
+        <slot name="note" />
+      </div>
+    )
+  }
+</div>

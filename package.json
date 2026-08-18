@@ -1,0 +1,40 @@
+{
+  "name": "mojo-ru",
+  "version": "0.1.0",
+  "description": "Обучающий сайт по языку Mojo 1.0 на русском языке",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "stubs": "node scripts/make-stubs.mjs",
+    "examples:check": "node scripts/check-examples.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "license": "CC-BY-4.0",
+  "dependencies": {
+    "@astrojs/starlight": "^0.41.7",
+    "astro": "^7.2.2",
+    "sharp": "^0.35.3",
+    "starlight-links-validator": "^0.25.3",
+    "unist-util-visit": "^5.1.0"
+  },
+  "devDependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "playwright": "^1.62.1",
+    "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^0.14.1"
+  },
+  "type": "module",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/V-Moskalenko/mojo-ru.git"
+  },
+  "homepage": "https://v-moskalenko.github.io/mojo-ru/",
+  "bugs": {
+    "url": "https://github.com/V-Moskalenko/mojo-ru/issues"
+  }
+}

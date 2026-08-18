@@ -1,0 +1,22 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro';
+import { MOJO_VERSION } from '../consts';
+
+/**
+ * Подвал страницы с бейджем «на какой версии Mojo проверены примеры».
+ * Читатель всегда видит, можно ли доверять коду на странице.
+ */
+const { entry } = Astro.props;
+const checkedOn = entry?.data?.mojoVersion ?? MOJO_VERSION;
+const isDraft = entry?.data?.wip === true;
+---
+
+{
+  !isDraft && (
+    <div class="mojo-version-badge not-content">
+      <span class="mojo-version-badge__dot" />
+      Примеры проверены на Mojo {checkedOn}
+    </div>
+  )
+}
+<Default {...Astro.props}><slot /></Default>

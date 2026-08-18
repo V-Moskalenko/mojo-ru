@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Официальная документация Mojo
+    url: https://mojolang.org/docs/manual/
+    about: Вопросы про сам язык, а не про курс, лучше сверять с первоисточником
+  - name: Форум Modular
+    url: https://forum.modular.com/
+    about: Помощь по Mojo от разработчиков языка и сообщества
