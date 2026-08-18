@@ -1,31 +1,314 @@
 ---
 title: Диагностика проблем
-description: Полный разбор ошибок установки Mojo и WSL.
+description: Справочник ошибок установки Mojo и WSL — что означает сообщение, почему возникает и как чинить.
 sidebar:
   order: 6
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.0.0
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import Result from '../../../components/Result.astro';
+import CompilerError from '../../../components/CompilerError.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+Собранный в одном месте разбор того, что чаще всего идёт не так при
+установке. Если вашей ошибки здесь нет — в конце главы написано, что
+собрать и куда прислать, чтобы вам помогли быстро.
+
+## Сначала — минутная проверка
+
+Прежде чем искать ошибку, прогоните эти четыре команды: они сразу
+показывают, на каком уровне сломано.
+
+<Tabs syncKey="os">
+  <TabItem label="Windows (в PowerShell)">
+
+```powershell
+wsl --list --verbose        # WSL стоит, версия 2, дистрибутив запущен?
+wsl --status                # версия ядра и дистрибутив по умолчанию
+```
+
+Дальше — уже внутри Ubuntu, команды из соседней вкладки.
+
+  </TabItem>
+  <TabItem label="Linux и macOS">
+
+```bash
+uv --version                            # uv установлен и виден в PATH?
+uv run mojo --version                   # компилятор ставится и запускается?
+ldd --version | head -1                 # (Linux) glibc 2.34 или новее?
+echo 'def main(): print("ok")' > /tmp/t.mojo && uv run mojo /tmp/t.mojo
+```
+
+<Result label="Если всё в порядке, последняя команда напечатает">
+ok
+</Result>
+
+  </TabItem>
+</Tabs>
+
+Ниже — разбор по симптомам.
+
+## Ошибки WSL
+
+<CompilerError msg="Error: 0x80370102 The virtual machine could not be started because a required feature is not installed">
+  <Fragment slot="meaning">
+    Windows не может запустить виртуальную машину: не включён компонент
+    «Платформа виртуальной машины», отключена виртуализация в BIOS/UEFI
+    либо процессор не поддерживает нужные расширения.
+  </Fragment>
+  <Fragment slot="fix">
+    По порядку, в PowerShell от администратора:
+
+    1. `Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform`
+    2. Перезагрузиться, зайти в BIOS/UEFI (<kbd>Del</kbd> или <kbd>F2</kbd>
+       при включении) и включить **Intel VT-x**, **AMD-V** или **SVM Mode**.
+    3. Проверить гипервизор:
+       `bcdedit /enum | findstr -i hypervisorlaunchtype`.
+       Если `Off` — включить: `bcdedit /set hypervisorlaunchtype Auto`
+       и перезагрузиться.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="WslRegisterDistribution failed with error: 0x8007019e">
+  <Fragment slot="meaning">
+    Не включён сам компонент «Подсистема Windows для Linux».
+  </Fragment>
+  <Fragment slot="fix">
+    `Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux`
+    в PowerShell от администратора, затем перезагрузка.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="WslRegisterDistribution failed with error: 0x80070003">
+  <Fragment slot="meaning">
+    WSL не может найти или создать файлы дистрибутива: обычно это
+    повреждённая установка или нехватка места на диске.
+  </Fragment>
+  <Fragment slot="fix">
+    Проверьте свободное место на системном диске. Затем удалите
+    и поставьте дистрибутив заново: `wsl --unregister Ubuntu-24.04`,
+    после чего `wsl --install -d Ubuntu-24.04`.
+
+    Команда `--unregister` **удаляет все файлы внутри дистрибутива** —
+    сначала скопируйте оттуда всё нужное.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="wsl : Термин «wsl» не распознан как имя командлета">
+  <Fragment slot="meaning">
+    Сборка Windows слишком старая: команды `wsl --install` в ней ещё нет.
+  </Fragment>
+  <Fragment slot="fix">
+    Нужна Windows 10 версии 2004 (сборка 19041) или новее. Проверьте
+    через `winver` и обновите систему.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="The distribution failed to start / WSL зависает при запуске">
+  <Fragment slot="meaning">
+    Чаще всего конфликт с другим гипервизором либо повреждённое состояние
+    после сбоя.
+  </Fragment>
+  <Fragment slot="fix">
+    Сначала полная перезагрузка WSL: `wsl --shutdown`, затем запустить
+    дистрибутив заново. Если не помогло — обновите VirtualBox
+    (нужна 6.0+) или VMware (15.5.5+): старые версии не уживаются
+    с гипервизором Windows.
+  </Fragment>
+</CompilerError>
+
+### Кончается место на диске C
+
+Виртуальный диск WSL растёт по мере использования и по умолчанию лежит
+на системном диске. Два способа справиться:
+
+**Разрешить диску отдавать освободившееся место.** В файле
+`C:\Users\<ВашеИмя>\.wslconfig`:
+
+```ini title="%UserProfile%\.wslconfig"
+[experimental]
+sparseVhd=true
+```
+
+Затем `wsl --shutdown`.
+
+**Перенести дистрибутив на другой диск:**
+
+```powershell
+wsl --shutdown
+wsl --export Ubuntu-24.04 D:\wsl-backup\ubuntu.tar
+wsl --unregister Ubuntu-24.04
+wsl --import Ubuntu-24.04 D:\wsl\ubuntu D:\wsl-backup\ubuntu.tar
+```
+
+После импорта пользователь по умолчанию сбрасывается на `root`. Вернуть
+своего:
+
+```powershell
+ubuntu2404.exe config --default-user вашеимя
+```
+
+## Ошибки установки Mojo
+
+<CompilerError msg="mojo: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34' not found">
+  <Fragment slot="meaning">
+    Слишком старая версия glibc — Mojo требует 2.34 или новее.
+    Типично для Ubuntu 20.04, Debian 11, CentOS 7.
+  </Fragment>
+  <Fragment slot="fix">
+    Обновить дистрибутив до Ubuntu 22.04 LTS или новее. В WSL проще всего
+    поставить свежий дистрибутив рядом:
+    `wsl --install -d Ubuntu-24.04`.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="Illegal instruction (core dumped)">
+  <Fragment slot="meaning">
+    Процессор не поддерживает инструкции, на которые рассчитан компилятор:
+    нужен уровень `x86-64-v3` — Haswell и новее.
+  </Fragment>
+  <Fragment slot="fix">
+    Проверьте набор инструкций:
+    `lscpu | grep -o -E 'avx2|bmi2|fma' | sort -u`. Если `avx2` нет —
+    на этом железе Mojo не запустится, нужна
+    [удалённая машина](/install/remote/). Та же ошибка бывает
+    на виртуальных машинах, где гипервизор скрывает AVX2 от гостевой
+    системы — тогда включите проброс инструкций в настройках ВМ.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="mojo: command not found">
+  <Fragment slot="meaning">
+    Mojo установлен внутрь окружения проекта, а вы вызываете его напрямую,
+    без активации окружения.
+  </Fragment>
+  <Fragment slot="fix">
+    Запускайте `uv run mojo ...` из папки проекта либо активируйте
+    окружение: `source .venv/bin/activate`.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="uv: command not found">
+  <Fragment slot="meaning">
+    uv установлен, но его каталог не попал в `PATH` текущей сессии.
+  </Fragment>
+  <Fragment slot="fix">
+    Перезапустите терминал или выполните `source ~/.bashrc`
+    (для zsh — `~/.zshrc`). Если не помогло, проверьте, что файл существует:
+    `ls ~/.local/bin/uv`, и добавьте каталог в `PATH`:
+    `export PATH="$HOME/.local/bin:$PATH"`.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="error: externally-managed-environment">
+  <Fragment slot="meaning">
+    Попытка поставить пакет в системный Python. Дистрибутивы и Homebrew
+    такое запрещают намеренно.
+  </Fragment>
+  <Fragment slot="fix">
+    Ставьте в проект: `uv init` и `uv add mojo`. Флаг
+    `--break-system-packages` не используйте — название у него честное.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="ld: cannot find -lc / cc: command not found">
+  <Fragment slot="meaning">
+    Нет системного компилятора C, а он нужен Mojo для линковки готовой
+    программы.
+  </Fragment>
+  <Fragment slot="fix">
+    Linux: `sudo apt install build-essential`.
+    macOS: `xcode-select --install`.
+  </Fragment>
+</CompilerError>
+
+## Проблемы с VS Code
+
+<CompilerError msg="Строка состояния сообщает, что SDK не найден">
+  <Fragment slot="meaning">
+    Расширение Mojo не нашло окружение с компилятором — обычно расширение
+    Python выбрало глобальный интерпретатор вместо проектного.
+  </Fragment>
+  <Fragment slot="fix">
+    **Python: Select Interpreter** → выбрать `.venv` проекта →
+    **Mojo: Refresh SDK Detection**. Если не помогло, укажите путь явно
+    в `.vscode/settings.json` — подробности в главе
+    [Настройка VS Code](/install/vscode/).
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="Расширение Mojo вообще не активируется, команд Mojo нет в палитре">
+  <Fragment slot="meaning">
+    Расширение установлено не на той стороне: в Windows вместо WSL либо
+    локально вместо удалённой сессии.
+  </Fragment>
+  <Fragment slot="fix">
+    Откройте панель расширений: у расширения Mojo должна быть кнопка
+    **Install in WSL: Ubuntu-24.04** (или `Install in SSH: ...`).
+    Если она есть — значит, оно стоит не там, где нужно.
+  </Fragment>
+</CompilerError>
+
+## Компиляция очень медленная
+
+Три причины по частоте:
+
+1. **Проект лежит в `/mnt/c/...`** — то есть в файловой системе Windows.
+   Перенесите его в `~/projects` внутри Linux: обращение к дискам Windows
+   идёт через медленную прослойку.
+2. **WSL не хватает памяти.** По умолчанию он берёт часть ОЗУ, и при
+   8 ГБ на машине компилятору может быть тесно. Настройте лимиты
+   в `.wslconfig` — см. [главу про WSL](/install/windows-wsl/).
+3. **Антивирус проверяет каждый файл сборки.** Добавьте папку проекта
+   и виртуальный диск WSL в исключения Microsoft Defender.
+
+## Если ничего не помогло
+
+Соберите вот это — с такими данными вам ответят с первого раза, а не после
+трёх уточняющих вопросов:
+
+<Steps>
+
+1. Версии:
+
+   ```bash
+   uv run mojo --version
+   uv --version
+   ```
+
+2. Система:
+
+   ```bash
+   uname -a
+   ldd --version | head -1
+   ```
+
+   На Windows дополнительно `wsl --version` в PowerShell.
+
+3. Процессор:
+
+   ```bash
+   lscpu | head -20
+   ```
+
+4. **Полный** текст ошибки — целиком, а не последняя строка. Именно
+   в середине обычно и написано, что произошло.
+
+5. Минимальный пример, который воспроизводит проблему.
+
+</Steps>
+
+Куда писать:
+
+- [форум Modular](https://forum.modular.com/) — вопросы про сам язык
+  и установку, отвечают в том числе разработчики;
+- [issues репозитория modular/modular](https://github.com/modular/modular/issues) —
+  если похоже на баг компилятора;
+- [issues этого курса](https://github.com/V-Moskalenko/mojo-ru/issues) —
+  если ошибка в тексте главы или чего-то не хватает в этом справочнике.
+
+<Aside type="tip" title="Ошибка, которой здесь нет">
+  Если вы решили проблему, которой нет в этом справочнике, — добавьте её.
+  Внизу страницы есть ссылка «Редактировать страницу»: тридцать секунд
+  вашего времени сэкономят чей-то вечер.
 </Aside>
-
-## Что будет в этой главе
-
-- Ошибки WSL по кодам
-- Проблемы с определением SDK
-- Медленная компиляция
-- Что прислать, если ничего не помогло
-
-## Хотите ускорить
-
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.

@@ -307,9 +307,13 @@ uv run mojo hello.mojo
 
    ```json title=".vscode/settings.json"
    {
-     "mojo.sdk.path": "${workspaceFolder}/.venv"
+     "mojo.sdk.path": "/home/вашеимя/projects/hello-mojo/.venv"
    }
    ```
+
+   Путь обязательно абсолютный: подстановки вроде `${workspaceFolder}`
+   расширение не понимает. Подробный разбор — в главе
+   [Настройка VS Code](/install/vscode/).
 
 </Steps>
 

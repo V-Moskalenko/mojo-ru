@@ -2,7 +2,8 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
-import { readFileSync } from 'node:fs';
+import sitemap from '@astrojs/sitemap';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { rehypeBaseLinks } from './src/plugins/rehype-base-links.mjs';
 
 /**
@@ -20,6 +21,37 @@ const BASE = process.env.SITE_BASE ?? '/mojo-ru';
 
 /** Репозиторий проекта — используется для ссылок «редактировать страницу». */
 const REPO = 'https://github.com/V-Moskalenko/mojo-ru';
+
+/**
+ * Адреса страниц, которые реально переведены на английский.
+ *
+ * Всё, чего в `src/content/docs/en/` нет, Starlight отдаёт по-английскому
+ * адресу с русским текстом. Такие страницы не должны попадать в карту сайта:
+ * для поисковика это дубли. Список собирается из файлов, поэтому обновляется
+ * сам по мере появления переводов.
+ */
+function translatedEnglishRoutes() {
+  const dir = new URL('./src/content/docs/en/', import.meta.url).pathname;
+  if (!existsSync(dir)) return new Set();
+
+  const routes = new Set();
+  const walk = (current, prefix) => {
+    for (const name of readdirSync(current)) {
+      const full = `${current}/${name}`;
+      if (statSync(full).isDirectory()) {
+        walk(full, `${prefix}${name}/`);
+        continue;
+      }
+      if (!/\.mdx?$/.test(name)) continue;
+      const slug = name.replace(/\.mdx?$/, '');
+      routes.add(slug === 'index' ? `/en/${prefix}` : `/en/${prefix}${slug}/`);
+    }
+  };
+  walk(dir.replace(/\/$/, ''), '');
+  return routes;
+}
+
+const EN_ROUTES = translatedEnglishRoutes();
 
 /**
  * TextMate-грамматика Mojo взята из официального расширения VS Code
@@ -43,6 +75,21 @@ export default defineConfig({
     rehypePlugins: [rehypeBaseLinks(BASE)],
   },
   integrations: [
+    /**
+     * Свой @astrojs/sitemap вместо встроенного: нужен фильтр, который
+     * выкидывает непереведённые английские адреса.
+     */
+    sitemap({
+      i18n: {
+        defaultLocale: 'root',
+        locales: { root: 'ru', en: 'en' },
+      },
+      filter: (page) => {
+        const path = new URL(page).pathname.replace(BASE === '/' ? '' : BASE, '') || '/';
+        if (!path.startsWith('/en/') && path !== '/en') return true;
+        return EN_ROUTES.has(path);
+      },
+    }),
     starlight({
       title: 'Mojo по-русски',
       tagline: 'Полный курс по языку Mojo 1.0 на русском языке',
@@ -94,6 +141,8 @@ export default defineConfig({
         ThemeProvider: './src/components/ThemeProvider.astro',
         // Базовый путь в кнопках на главной
         Hero: './src/components/Hero.astro',
+        // noindex для английских страниц, которые ещё не переведены
+        Head: './src/components/Head.astro',
       },
       plugins: [
         // Ломаная внутренняя ссылка роняет сборку — лучше поймать её в CI,

@@ -1,31 +1,293 @@
 ---
 title: Установка на macOS и Linux
-description: Установка Mojo 1.0 через uv на macOS и Linux.
+description: Установка Mojo 1.0 через uv на macOS с Apple Silicon и на Linux — с проверкой окружения и разбором типичных ошибок.
 sidebar:
   order: 3
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.0.0
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Steps, Tabs, TabItem, Aside, FileTree } from '@astrojs/starlight/components';
+import Result from '../../../components/Result.astro';
+import CompilerError from '../../../components/CompilerError.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+На macOS и Linux Mojo ставится как обычный пакет — никакой виртуализации,
+как на Windows, не требуется. Весь путь занимает минут десять.
+
+<Aside type="note" title="Перед началом">
+  Убедитесь, что железо подходит: на macOS нужен **Apple Silicon**
+  (маки на Intel не поддерживаются), на Linux — **glibc 2.34+** и процессор
+  уровня `x86-64-v3`. Подробности и команды проверки — в главе
+  [Системные требования](/install/requirements/).
 </Aside>
 
-## Что будет в этой главе
+## Шаг 1. Подготовьте систему
 
-- Установка uv
-- Создание проекта и uv add mojo
-- Особенности Apple Silicon
-- Проверка установки
+Mojo компилирует программы в машинный код, и для финальной сборки ему нужен
+системный компилятор C — он выполняет линковку.
 
-## Хотите ускорить
+<Tabs syncKey="os">
+  <TabItem label="Linux">
 
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+```bash
+sudo apt update && sudo apt install -y build-essential curl
+```
+
+Для Fedora и RHEL:
+
+```bash
+sudo dnf install -y gcc curl
+```
+
+Для Arch:
+
+```bash
+sudo pacman -S --needed base-devel curl
+```
+
+  </TabItem>
+  <TabItem label="macOS">
+
+Нужны Xcode Command Line Tools версии 16 или новее:
+
+```bash
+xcode-select --install
+```
+
+Если инструменты уже стоят, команда сообщит об этом. Проверить версию:
+
+```bash
+xcodebuild -version
+```
+
+Если версия ниже 16 — обновите Xcode через App Store либо переустановите
+Command Line Tools.
+
+  </TabItem>
+</Tabs>
+
+## Шаг 2. Установите uv
+
+[uv](https://docs.astral.sh/uv/) — менеджер пакетов и проектов от Astral,
+который официальная документация Mojo предлагает как один из двух
+рекомендованных способов установки.
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Перезапустите оболочку, чтобы `uv` появился в `PATH`:
+
+<Tabs syncKey="shell">
+  <TabItem label="bash">
+
+```bash
+source ~/.bashrc
+```
+
+  </TabItem>
+  <TabItem label="zsh">
+
+```bash
+source ~/.zshrc
+```
+
+  </TabItem>
+  <TabItem label="fish">
+
+```fish
+source ~/.config/fish/config.fish
+```
+
+  </TabItem>
+</Tabs>
+
+Проверьте:
+
+```bash
+uv --version
+```
+
+<Aside type="tip" title="Если uv уже установлен">
+  Многие питонисты держат uv как замену `pip` и `virtualenv` — тогда этот шаг
+  можно пропустить. Только обновитесь: `uv self update`.
+</Aside>
+
+## Шаг 3. Создайте проект и поставьте Mojo
+
+<Steps>
+
+1. Создайте проект:
+
+   ```bash
+   uv init hello-mojo
+   cd hello-mojo
+   ```
+
+2. Добавьте Mojo в зависимости:
+
+   ```bash
+   uv add mojo
+   ```
+
+   uv создаст виртуальное окружение `.venv` и скачает в него компилятор
+   и стандартную библиотеку. Первый раз это занимает пару минут — пакет
+   увесистый.
+
+3. Проверьте установку:
+
+   ```bash
+   uv run mojo --version
+   ```
+
+   Должна появиться версия `1.0.0` или новее в пределах ветки 1.x.
+
+</Steps>
+
+Получится такая структура:
+
+<FileTree>
+- hello-mojo
+  - .venv/ окружение проекта, внутри компилятор Mojo
+  - pyproject.toml зависимости проекта
+  - uv.lock точные версии — этот файл коммитят в репозиторий
+  - main.py создан uv по умолчанию, можно удалить
+</FileTree>
+
+<Aside type="note" title="Почему Mojo ставится в проект, а не в систему">
+  Это не причуда uv, а хорошая практика: у каждого проекта своя версия
+  компилятора, зафиксированная в `uv.lock`. Обновление Mojo в одном проекте
+  не ломает соседние, а коллега по репозиторию получит ровно ту же версию,
+  что и вы. Обратная сторона — команда `mojo` не появляется в системе
+  глобально, запускать нужно через `uv run`.
+</Aside>
+
+## Шаг 4. Первая программа
+
+```mojo title="hello.mojo"
+def main():
+    print("Привет, Mojo!")
+```
+
+```bash
+uv run mojo hello.mojo
+```
+
+<Result>
+Привет, Mojo!
+</Result>
+
+Готово — окружение работает.
+
+## Как запускать без `uv run`
+
+Постоянно печатать `uv run` необязательно. Активируйте окружение один раз
+за сессию терминала:
+
+<Tabs syncKey="shell">
+  <TabItem label="bash">
+
+```bash
+source .venv/bin/activate
+mojo hello.mojo
+```
+
+  </TabItem>
+  <TabItem label="zsh">
+
+```bash
+source .venv/bin/activate
+mojo hello.mojo
+```
+
+  </TabItem>
+  <TabItem label="fish">
+
+```fish
+source .venv/bin/activate.fish
+mojo hello.mojo
+```
+
+  </TabItem>
+</Tabs>
+
+Выйти из окружения — командой `deactivate`.
+
+В курсе везде используется вариант с `uv run`: он не зависит от того,
+активировано окружение или нет, и поэтому воспроизводим у всех читателей.
+
+## Типичные ошибки
+
+<CompilerError msg="error: externally-managed-environment">
+  <Fragment slot="meaning">
+    Вы пытаетесь поставить Mojo глобально через системный `pip`. Современные
+    дистрибутивы Linux и Homebrew на macOS защищают системный Python
+    от таких установок.
+  </Fragment>
+  <Fragment slot="fix">
+    Так и должно быть — ставьте в проект: `uv init` и `uv add mojo`.
+    Не обходите защиту флагом `--break-system-packages`: системный Python
+    сломается тихо и не сразу.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="mojo: /lib/x86_64-linux-gnu/libc.so.6: version `GLIBC_2.34' not found">
+  <Fragment slot="meaning">
+    Дистрибутив слишком старый: в нём glibc ниже 2.34. Так бывает
+    на Ubuntu 20.04, Debian 11 и CentOS 7.
+  </Fragment>
+  <Fragment slot="fix">
+    Обновите дистрибутив до Ubuntu 22.04 LTS или новее — других вариантов,
+    кроме контейнера с более свежей базой, здесь нет. Проверить текущую
+    версию: `ldd --version`.
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="No solution found when resolving dependencies: mojo was not found in the package registry">
+  <Fragment slot="meaning">
+    Платформа не поддерживается: обычно это Mac на Intel или 32-битная
+    система. Пакета под такую архитектуру просто нет.
+  </Fragment>
+  <Fragment slot="fix">
+    Проверьте архитектуру: `uname -m`. Должно быть `arm64` на macOS
+    либо `x86_64` / `aarch64` на Linux. Если это Intel-мак — используйте
+    [удалённую машину или Codespaces](/install/remote/).
+  </Fragment>
+</CompilerError>
+
+<CompilerError msg="ld: library not found / cc: command not found">
+  <Fragment slot="meaning">
+    Mojo скомпилировал программу, но не смог её слинковать: в системе нет
+    компилятора C.
+  </Fragment>
+  <Fragment slot="fix">
+    Вернитесь к шагу 1: на Linux поставьте `build-essential` (или `gcc`),
+    на macOS — Command Line Tools через `xcode-select --install`.
+  </Fragment>
+</CompilerError>
+
+<Quiz>
+  <QuizItem q="Зачем Mojo нужен системный компилятор C, если у него свой компилятор?">
+    Свой компилятор превращает код Mojo в объектный файл, но собрать
+    из объектных файлов исполняемую программу и подключить системные
+    библиотеки должен линковщик — его берут из установленного `cc`,
+    `gcc` или `clang`.
+  </QuizItem>
+  <QuizItem q="Чем `uv run mojo` отличается от активации окружения и вызова `mojo`?">
+    Ничем по результату. `uv run` сам подставляет окружение проекта
+    на время одной команды, активация делает то же самое на всю сессию
+    терминала. В курсе используется `uv run`, потому что он работает
+    одинаково независимо от состояния оболочки.
+  </QuizItem>
+  <QuizItem q="Нужно ли коммитить в репозиторий файл uv.lock?">
+    Да. Он фиксирует точные версии Mojo и остальных зависимостей — благодаря
+    ему у всех участников проекта собирается один и тот же код. А вот
+    папку `.venv` коммитить не нужно, ей место в `.gitignore`.
+  </QuizItem>
+</Quiz>
+
+## Что дальше
+
+Окружение готово — [настроим редактор](/install/vscode/), чтобы работали
+автодополнение, подсказки и отладчик.

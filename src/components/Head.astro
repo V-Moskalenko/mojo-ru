@@ -1,0 +1,17 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro';
+
+/**
+ * Дополнение к стандартному <head> Starlight.
+ *
+ * Пока английских переводов почти нет, Starlight подставляет вместо них
+ * русский оригинал (fallback). Читателю это удобно, а поисковику — нет:
+ * получается полсотни английских адресов с русским текстом, то есть
+ * дублирующийся контент. Такие страницы закрываем от индексации;
+ * ссылки на них при этом остаются рабочими.
+ */
+const isFallback = Astro.locals.starlightRoute?.isFallback === true;
+---
+
+<Default><slot /></Default>
+{isFallback && <meta name="robots" content="noindex, follow" />}

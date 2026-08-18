@@ -540,3 +540,55 @@ header.header {
   background-color: var(--mojo-flame-soft);
   border-color: var(--sl-color-gray-6);
 }
+
+/* --------------------------------------------------------------------------
+   Содержимое внутри собственных компонентов
+   Они помечены `not-content`, поэтому базовые стили Starlight на них
+   не действуют — списки, ссылки и код внутри нужно оформить самим.
+   -------------------------------------------------------------------------- */
+
+.mojo-error__section :is(ol, ul),
+.mojo-quiz :is(ol, ul),
+.py-mojo__note :is(ol, ul) {
+  margin: 0.4rem 0 0;
+  padding-inline-start: 1.3rem;
+  list-style: revert;
+}
+
+.mojo-error__section li,
+.mojo-quiz li {
+  margin-block: 0.25rem;
+}
+
+.mojo-error__section :is(p, li) + p {
+  margin-top: 0.5rem;
+}
+
+.mojo-error__section a,
+.mojo-quiz a,
+.py-mojo__note a {
+  color: var(--sl-color-accent-high);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.mojo-error__section code,
+.mojo-quiz code,
+.py-mojo__note code {
+  background: var(--mojo-flame-soft);
+  border: 1px solid var(--sl-color-gray-6);
+  border-radius: 0.35rem;
+  padding: 0.1em 0.35em;
+  font-family: var(--sl-font-mono);
+  font-size: 0.88em;
+}
+
+.mojo-error__section kbd,
+.mojo-quiz kbd {
+  border: 1px solid var(--sl-color-gray-5);
+  border-bottom-width: 2px;
+  border-radius: 0.3rem;
+  padding: 0.05em 0.35em;
+  font-family: var(--sl-font-mono);
+  font-size: 0.85em;
+}
