@@ -6,7 +6,8 @@ sidebar:
 mojoVersion: 1.0.0
 ---
 
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, Code, Tabs, TabItem } from '@astrojs/starlight/components';
+import temperature from '../../../../examples/basics/first-program/temperature.mojo?raw';
 import Result from '../../../components/Result.astro';
 import PyMojo from '../../../components/PyMojo.astro';
 import CompilerError from '../../../components/CompilerError.astro';
@@ -19,19 +20,7 @@ import QuizItem from '../../../components/QuizItem.astro';
 
 ## Программа целиком
 
-```mojo title="temperature.mojo"
-def average(values: List[Float64]) -> Float64:
-    var total = 0.0
-    for value in values:
-        total += value
-    return total / len(values)
-
-
-def main():
-    var measurements = List[Float64](21.5, 23.0, 19.8, 24.2)
-    var mean = average(measurements)
-    print("Средняя температура:", mean)
-```
+<Code code={temperature} lang="mojo" title="temperature.mojo" />
 
 Запустим:
 
@@ -114,7 +103,7 @@ def average(values: List[Float64]) -> Float64:
     var total = 0.0
     for value in values:
         total += value
-    return total / len(values)
+    return total / Float64(len(values))
 ```
   </Fragment>
   <Fragment slot="note">
