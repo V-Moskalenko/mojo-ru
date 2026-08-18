@@ -69,6 +69,17 @@ export default defineConfig({
       editLink: {
         baseUrl: `${REPO}/edit/main/`,
       },
+      head: [
+        // Картинка-превью для Telegram, Хабра и прочих мест, куда кинут ссылку.
+        // Пересобрать после смены домена: node scripts/make-og.mjs
+        {
+          tag: 'meta',
+          attrs: { property: 'og:image', content: `${SITE}${BASE === '/' ? '' : BASE}/og.png` },
+        },
+        { tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
+        { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+        { tag: 'meta', attrs: { name: 'theme-color', content: '#14110f' } },
+      ],
       lastUpdated: true,
       pagination: true,
       customCss: [

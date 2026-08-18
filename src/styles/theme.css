@@ -532,3 +532,11 @@ header.header {
   border-inline-start: 2px solid var(--mojo-flame);
   border-radius: 0 0.35rem 0.35rem 0;
 }
+
+/* Иконки карточек на главной — в единой огненной гамме,
+   вместо разноцветных значков по умолчанию */
+.card .icon {
+  color: var(--mojo-flame);
+  background-color: var(--mojo-flame-soft);
+  border-color: var(--sl-color-gray-6);
+}

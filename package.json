@@ -10,7 +10,8 @@
     "stubs": "node scripts/make-stubs.mjs",
     "examples:check": "node scripts/check-examples.mjs",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "og": "node scripts/make-og.mjs"
   },
   "license": "CC-BY-4.0",
   "dependencies": {

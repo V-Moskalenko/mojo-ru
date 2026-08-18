@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14110F"/>
+      <stop offset="1" stop-color="#241B14"/>
+    </linearGradient>
+    <linearGradient id="title" x1="90" y1="0" x2="900" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDFAF7"/>
+      <stop offset="1" stop-color="#FF9A5C"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#FF7A2F"/>
+
+  <g transform="translate(90, 150)"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="180" height="180" fill="none">
+  <defs>
+    <linearGradient id="flame" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB067"/>
+      <stop offset=".55" stop-color="#FF7A2F"/>
+      <stop offset="1" stop-color="#D4530B"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#flame)" d="M16.6 2.2c.4 3.6-1.1 5.6-3 7.6-2.2 2.3-4.8 4.5-4.8 8.7 0 4.1 3.2 7.5 7.2 7.5s7.2-3.4 7.2-7.5c0-2.6-1-4.3-2.3-6 .2 1.6-.4 2.9-1.4 3.6.3-3.6-1.1-6.3-2.9-8.4-1-1.2-.9-3.4 0-5.5Z"/>
+  <path fill="#FFE0C4" d="M16 15.5c1.7 1.6 2.6 3 2.6 4.6 0 1.7-1.2 3-2.6 3s-2.6-1.3-2.6-3c0-1.6.9-3 2.6-4.6Z"/>
+</svg>
+</g>
+
+  <text x="310" y="250" font-family="Inter, Arial, sans-serif" font-size="82" font-weight="700"
+        letter-spacing="-2" fill="url(#title)">Mojo по-русски</text>
+
+  <text x="312" y="320" font-family="Inter, Arial, sans-serif" font-size="34" fill="#C6BFB9">
+    Полный курс по языку Mojo 1.0 на русском языке
+  </text>
+
+  <g transform="translate(312, 380)">
+    <rect x="0" y="0" width="196" height="44" rx="22" fill="#2A2521" stroke="#433D38"/>
+    <text x="24" y="29" font-family="Inter, Arial, sans-serif" font-size="20" fill="#FF9A5C">Mojo 1.0 · 2026</text>
+    <rect x="216" y="0" width="270" height="44" rx="22" fill="#2A2521" stroke="#433D38"/>
+    <text x="240" y="29" font-family="Inter, Arial, sans-serif" font-size="20" fill="#C6BFB9">Windows · WSL · VS Code</text>
+  </g>
+
+  <text x="312" y="500" font-family="Inter, Arial, sans-serif" font-size="24" fill="#9A918A">
+    Бесплатно и открыто · v-moskalenko.github.io/mojo-ru
+  </text>
+</svg>
