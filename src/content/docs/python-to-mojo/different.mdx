@@ -1,31 +1,386 @@
 ---
 title: Что изменилось
-description: Ключевые отличия Mojo от Python, которые придётся принять.
+description: Главные отличия Mojo 1.0 от Python — с настоящими сообщениями компилятора и объяснением, почему сделано именно так.
 sidebar:
   order: 2
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.0.0
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Code } from '@astrojs/starlight/components';
+import strings from '../../../../examples/python-to-mojo/different/strings.mojo?raw';
+import Result from '../../../components/Result.astro';
+import PyMojo from '../../../components/PyMojo.astro';
+import CompilerError from '../../../components/CompilerError.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+Предыдущая глава была про хорошие новости. Эта — про то, обо что вы
+споткнётесь в первый день. Все сообщения об ошибках ниже настоящие:
+получены на Mojo 1.0, а не придуманы.
+
+<Aside type="tip" title="Общий принцип">
+  Почти каждое отличие сводится к одному: **Python откладывает решения
+  на момент выполнения, Mojo принимает их на этапе компиляции**. Отсюда
+  и обязательные типы, и явные преобразования, и отсутствие «магии»,
+  которая в Python стоит дёшево, а в компилируемом коде — дорого.
 </Aside>
 
-## Что будет в этой главе
+## 1. Код не может лежать на верхнем уровне
 
-- Обязательная точка входа main()
-- Обязательные типы
-- Владение вместо сборщика мусора
-- Компиляция вместо интерпретации
+<PyMojo>
+  <Fragment slot="python">
+```python
+print("привет")
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+def main():
+    print("привет")
+```
+  </Fragment>
+  <Fragment slot="note">
+    У скомпилированной программы должна быть точка входа — с неё начинается
+    выполнение бинарника. Эту роль играет `main()`.
+  </Fragment>
+</PyMojo>
 
-## Хотите ускорить
+<CompilerError msg="error: expressions must not appear at file scope; move this into a function body">
+  <Fragment slot="meaning">
+    Вы написали исполняемый код прямо в файле, вне функции.
+  </Fragment>
+  <Fragment slot="fix">
+    Оберните его в `def main():`.
+  </Fragment>
+</CompilerError>
 
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+## 2. Типы аргументов обязательны
+
+<PyMojo>
+  <Fragment slot="python">
+```python
+def add(a, b):
+    return a + b
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+def add(a: Int, b: Int) -> Int:
+    return a + b
+```
+  </Fragment>
+  <Fragment slot="note">
+    Без типа компилятор не знает ни сколько байт занимает значение,
+    ни какие машинные инструкции для него генерировать.
+  </Fragment>
+</PyMojo>
+
+<CompilerError msg="error: argument type must be specified">
+  <Fragment slot="meaning">
+    У аргумента функции не указан тип.
+  </Fragment>
+  <Fragment slot="fix">
+    Допишите аннотацию: `def add(a: Int, b: Int) -> Int:`.
+  </Fragment>
+</CompilerError>
+
+## 3. F-строк нет
+
+Пожалуй, самая обидная потеря для питониста. `f"..."` в Mojo 1.0
+не поддерживается, и ошибка при этом выглядит загадочно:
+
+<CompilerError msg={`error: expected ')' in call argument list
+    print(f"x = {x}")
+           ^`}>
+  <Fragment slot="meaning">
+    Компилятор не знает про префикс `f` и видит просто идентификатор `f`,
+    за которым непонятно почему идёт строка. Отсюда невнятное сообщение
+    про закрывающую скобку.
+  </Fragment>
+  <Fragment slot="fix">
+    Передавайте значения аргументами `print` — он сам расставит пробелы:
+
+    `print("x =", x)`
+
+    Либо соберите строку явно: `print("x = " + String(x))`.
+  </Fragment>
+</CompilerError>
+
+<PyMojo>
+  <Fragment slot="python">
+```python
+print(f"x = {x}")
+name = f"{first} {last}"
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+print("x =", x)
+var name = first + " " + last
+```
+  </Fragment>
+  <Fragment slot="note">
+    `String(значение)` превращает в строку что угодно: число, булево,
+    свою структуру — если она умеет себя печатать.
+  </Fragment>
+</PyMojo>
+
+## 4. У строки нет одной длины
+
+Вот это отличие для русскоязычного читателя важнее, чем для англоязычного,
+и в большинстве учебников его проглатывают.
+
+<CompilerError msg='error: `len(String/StringSlice)` is not supported because Mojo strings are UTF-8 encoded, so a single length is ambiguous'>
+  <Fragment slot="meaning">
+    Строки в Mojo хранятся в UTF-8. «Длина» строки «Привет» — это 12 байт,
+    6 кодовых точек или 6 видимых символов. Компилятор отказывается угадывать,
+    что вы имели в виду.
+  </Fragment>
+  <Fragment slot="fix">
+    Скажите явно: `s.byte_length()` — байты, `len(s.codepoints())` —
+    кодовые точки Unicode, `len(s.graphemes())` — видимые символы.
+  </Fragment>
+</CompilerError>
+
+То же самое со срезами: `s[1:4]` не работает, нужно указать единицу измерения.
+
+<Code code={strings} lang="mojo" title="strings.mojo" />
+
+<Result>
+байт: 12
+кодовых точек: 6
+графем: 6
+первые три символа: При
+первые четыре байта: Пр
+в слове Привет ровно 6 букв
+</Result>
+
+Обратите внимание на последние две строки вывода: четыре байта — это всего
+два русских символа, потому что каждая кириллическая буква в UTF-8 занимает
+два байта. В Python вы бы этого не заметили и однажды получили бы обрезанную
+на середине символа строку.
+
+<Aside type="note" title="Почему это правильно">
+  Python 3 прячет разницу между байтами и символами — до тех пор, пока
+  вы не начнёте резать строки, считать длину для выравнивания или писать
+  их в файл. Mojo заставляет принять решение один раз, в момент написания
+  кода, а не отлаживать «странные» символы потом.
+</Aside>
+
+## 5. Отрицательных индексов нет
+
+<PyMojo>
+  <Fragment slot="python">
+```python
+last = items[-1]
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+var last = items[len(items) - 1]
+```
+  </Fragment>
+  <Fragment slot="note">
+    Проверка «а не отрицательный ли индекс» стоила бы ветвления при каждом
+    обращении к элементу — а обращения к элементам как раз и стоят в самых
+    горячих циклах.
+  </Fragment>
+</PyMojo>
+
+<CompilerError msg="note: constraint failed: negative indexing is not supported, use e.g. `x[len(x) - 1]`">
+  <Fragment slot="meaning">
+    Вы обратились к элементу по отрицательному индексу.
+  </Fragment>
+  <Fragment slot="fix">
+    Компилятор прямо в сообщении показывает замену: `x[len(x) - 1]`.
+  </Fragment>
+</CompilerError>
+
+## 6. Числа не смешиваются молча
+
+```mojo
+var a: Float64 = 1.5
+var b: Int = 2
+print(a + b)     # ошибка
+print(a + Float64(b))   # так правильно
+```
+
+<CompilerError msg="error: invalid call to '__add__': value passed to 'rhs' cannot be converted from 'Int' to 'Float64'">
+  <Fragment slot="meaning">
+    Неявного расширения `Int` до `Float64` в Mojo нет: компилятор не станет
+    незаметно менять представление числа.
+  </Fragment>
+  <Fragment slot="fix">
+    Преобразуйте явно: `Float64(b)`.
+  </Fragment>
+</CompilerError>
+
+Само деление при этом ведёт себя по-питоновски: `7 / 2` даёт `3.5`,
+а `7 // 2` — `3`.
+
+## 7. Вместо классов — структуры
+
+<CompilerError msg="error: classes are not supported yet">
+  <Fragment slot="meaning">
+    Ключевого слова `class` в Mojo 1.0 нет. Слово «yet» в сообщении
+    намекает, что когда-нибудь появится, но сегодня его нет.
+  </Fragment>
+  <Fragment slot="fix">
+    Используйте `struct`. Отличие принципиальное: структура не имеет
+    динамической природы Python-класса — состав полей и методов известен
+    компилятору целиком, менять его во время выполнения нельзя.
+  </Fragment>
+</CompilerError>
+
+```mojo
+@fieldwise_init
+struct Point(ImplicitlyCopyable):
+    var x: Int
+    var y: Int
+
+
+def main():
+    var p = Point(1, 2)
+    print(p.x, p.y)
+```
+
+## 8. Копирование перестало быть бесплатным
+
+Самое непривычное. В Python `b = a` просто добавляет ссылку. В Mojo
+у значения один владелец, и присваивание — это либо копия, либо передача
+владения. Причём копию нужно разрешить явно:
+
+<CompilerError msg="error: value of type 'P' cannot be implicitly copied, it does not conform to 'ImplicitlyCopyable'">
+  <Fragment slot="meaning">
+    Вы присвоили структуру другой переменной, а её тип не разрешает
+    неявное копирование.
+  </Fragment>
+  <Fragment slot="fix">
+    Компилятор подсказывает оба выхода прямо в сообщении: передать владение
+    через `var b = a^` или скопировать явно через `var b = a.copy()`.
+    Третий вариант — разрешить неявные копии, объявив структуру как
+    `struct P(ImplicitlyCopyable)`.
+  </Fragment>
+</CompilerError>
+
+Это ядро языка, и ему посвящён [целый раздел](/ownership/intro/). Пока
+достаточно запомнить: если компилятор ругается на присваивание — он не
+придирается, а спрашивает, что вы имели в виду.
+
+## 9. Исключения объявляются заранее
+
+<PyMojo>
+  <Fragment slot="python">
+```python
+def risky():
+    raise ValueError("плохо")
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+def risky() raises:
+    raise Error("плохо")
+```
+  </Fragment>
+  <Fragment slot="note">
+    Функция, которая может бросить исключение, помечается словом `raises` —
+    и вызывающий код обязан это учитывать. В Python исключение может
+    прилететь откуда угодно, в Mojo это часть контракта функции.
+  </Fragment>
+</PyMojo>
+
+<CompilerError msg="error: 'raise' requires a surrounding 'try' block or the enclosing function to declare 'raises'">
+  <Fragment slot="meaning">
+    Внутри функции есть `raise`, но сама функция не объявлена как `raises`.
+  </Fragment>
+  <Fragment slot="fix">
+    Допишите `raises` в сигнатуру либо оберните код в `try`.
+  </Fragment>
+</CompilerError>
+
+## 10. Лямбды пишутся строже
+
+<PyMojo>
+  <Fragment slot="python">
+```python
+f = lambda x: x + 1
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+var f = lambda (x: Int) -> Int: x + 1
+```
+  </Fragment>
+  <Fragment slot="note">
+    Аргументы — в скобках и с типами, возвращаемый тип указывается явно.
+    Компилятор, кстати, сам подскажет правильную форму, если написать
+    по-питоновски.
+  </Fragment>
+</PyMojo>
+
+## 11. Переменные объявляются через `var`
+
+Присваивание без `var` пока работает, но компилятор предупреждает:
+
+<CompilerError msg="warning: implicit declaration of 'x' is deprecated; add 'var' before the assignment target">
+  <Fragment slot="meaning">
+    Неявное объявление переменных объявлено устаревшим. Сегодня это
+    предупреждение, в будущих версиях станет ошибкой.
+  </Fragment>
+  <Fragment slot="fix">
+    Пишите `var x = 1` при первом присваивании. Дальше в теле функции
+    `var` уже не нужен: `x = 2` — это обычное изменение значения.
+  </Fragment>
+</CompilerError>
+
+## 12. Программа компилируется, а не интерпретируется
+
+```bash
+uv run mojo main.mojo         # собрать и сразу запустить
+uv run mojo build main.mojo   # получить исполняемый файл
+./main                        # запустить его где угодно
+```
+
+Бинарнику не нужны ни интерпретатор, ни виртуальное окружение. Обратная
+сторона — компиляция занимает время, и «поправил строчку — запустил» уже
+не мгновенно.
+
+## Сводка
+
+| В Python | В Mojo 1.0 |
+| --- | --- |
+| Код на верхнем уровне | Только внутри `def main()` |
+| `def add(a, b)` | `def add(a: Int, b: Int) -> Int` |
+| `f"x = {x}"` | `print("x =", x)` или `"x = " + String(x)` |
+| `len(s)` для строки | `s.byte_length()` / `len(s.codepoints())` / `len(s.graphemes())` |
+| `s[1:4]` | `s[byte=1:4]` или `s[codepoint=1:4]` |
+| `items[-1]` | `items[len(items) - 1]` |
+| `1.5 + 2` | `1.5 + Float64(2)` |
+| `class Foo:` | `struct Foo:` |
+| `b = a` (ссылка) | `b = a^` (передача) или `b = a.copy()` |
+| Исключения где угодно | Функция помечается `raises` |
+| `lambda x: x + 1` | `lambda (x: Int) -> Int: x + 1` |
+| `x = 1` | `var x = 1` |
+
+<Quiz>
+  <QuizItem q="Почему в Mojo нельзя просто написать len(строки)?">
+    Потому что для UTF-8 «длина» неоднозначна: у слова «Привет» 12 байт,
+    6 кодовых точек и 6 видимых символов. Компилятор отказывается выбирать
+    за вас и требует явного `byte_length()`, `codepoints()` или `graphemes()`.
+  </QuizItem>
+  <QuizItem q="Что делает `^` в строке `var b = a^`?">
+    Передаёт владение значением от `a` к `b`. После этого пользоваться
+    старой переменной нельзя — владелец у значения всегда один.
+    Это альтернатива копированию, и она бесплатна.
+  </QuizItem>
+  <QuizItem q="Компилятор ругается на `1.5 + count`, где count имеет тип Int. Что не так?">
+    Неявных числовых преобразований в Mojo нет. Нужно написать
+    `1.5 + Float64(count)`. Это сделано специально: молчаливое изменение
+    представления числа — источник трудноуловимых ошибок точности.
+  </QuizItem>
+</Quiz>
+
+## Что дальше
+
+Ошибки компилятора вы теперь будете видеть часто — и это нормально.
+Следующая глава учит [читать их быстро](/python-to-mojo/errors/).

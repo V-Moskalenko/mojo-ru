@@ -38,6 +38,7 @@ const shots = [
   ['/mojo-ru/python-to-mojo/outdated/', 'outdated', 1440, 1100],
   ['/mojo-ru/install/troubleshooting/', 'troubleshooting', 1440, 1200],
   ['/mojo-ru/install/vscode/', 'vscode', 1440, 1200],
+  ['/mojo-ru/python-to-mojo/different/', 'different', 1440, 1250],
   ['/mojo-ru/basics/first-program/', 'mobile', 420, 900],
 ];
 for (const [url, name, w, h] of shots) {

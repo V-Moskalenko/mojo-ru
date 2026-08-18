@@ -9,11 +9,14 @@ on:
     branches: [main]
     paths:
       - 'examples/**'
+      - 'src/content/docs/**'
       - 'scripts/check-examples.mjs'
       - '.github/workflows/check-examples.yml'
   pull_request:
     paths:
       - 'examples/**'
+      - 'src/content/docs/**'
+      - 'scripts/check-examples.mjs'
   schedule:
     # каждый понедельник в 06:00 UTC — ловим обновления Mojo, даже если
     # в репозиторий никто ничего не коммитил
