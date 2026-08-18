@@ -1,109 +1,170 @@
+<div align="center">
+
+![Mojo по-русски](public/og.png)
+
 # Mojo по-русски
 
-[![Сборка и публикация](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/deploy.yml/badge.svg)](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/deploy.yml)
-[![Проверка примеров](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/check-examples.yml/badge.svg)](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/check-examples.yml)
-[![Mojo 1.0](https://img.shields.io/badge/Mojo-1.0-ff7a2f)](https://mojolang.org/)
-[![Лицензия текста: CC BY 4.0](https://img.shields.io/badge/текст-CC%20BY%204.0-blue)](LICENSE-CONTENT)
-
-Бесплатный обучающий курс по языку программирования **Mojo 1.0** на русском языке.
+**Бесплатный курс по языку программирования Mojo 1.0 на русском языке.**
 От «у меня Windows и я ничего не понимаю» до собственной библиотеки с SIMD.
 
-**Сайт:** https://v-moskalenko.github.io/mojo-ru/
+### [📖 Читать курс →](https://v-moskalenko.github.io/mojo-ru/)
 
-## Что уже есть
+[![Mojo 1.0](https://img.shields.io/badge/Mojo-1.0-ff7a2f)](https://mojolang.org/)
+[![Сборка сайта](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/deploy.yml/badge.svg)](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/deploy.yml)
+[![Примеры компилируются](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/check-examples.yml/badge.svg)](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/check-examples.yml)
+[![Лицензия текста: CC BY 4.0](https://img.shields.io/badge/текст-CC%20BY%204.0-blue)](LICENSE-CONTENT)
 
-- Каркас на Astro + Starlight: русский как основной язык, английская версия заложена в архитектуру
-- Дизайн-система: тёплая тёмная тема по умолчанию, типографика под длинные технические тексты на кириллице
-- Подсветка синтаксиса Mojo — грамматика из официального расширения VS Code, потому что в Shiki языка Mojo нет
-- Свои компоненты: сравнение «Python → Mojo», блок вывода программы, карточка ошибки компилятора, «Проверь себя», бейдж версии Mojo
-- Структура курса целиком: 9 разделов, 54 страницы
-- Написаны: установка на Windows через WSL, первая программа, устаревшие конструкции, словарь терминов, «зачем нужен Mojo»
-- CI: сборка с проверкой всех внутренних ссылок и еженедельный прогон примеров на настоящем компиляторе Mojo
+</div>
 
-## Запуск
+---
+
+## Что это
+
+Mojo — язык от создателя LLVM и Swift Криса Латтнера: синтаксис Python,
+скорость компилируемого языка, безопасная работа с памятью без сборщика
+мусора. В августе 2026 вышла версия 1.0 — первая со стабильным API,
+на который уже можно опираться.
+
+Этот курс объясняет язык **по-русски и с нуля**, опираясь на официальную
+документацию Modular. Ничего платного, никакой регистрации: открываете
+и читаете.
+
+## С чего начать
+
+| Вы                                | Начните отсюда                                                                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 💻 Работаете на Windows           | [Установка через WSL](https://v-moskalenko.github.io/mojo-ru/install/windows-wsl/) — самая подробная глава курса       |
+| 🍏 Mac на Apple Silicon или Linux | [Установка через uv](https://v-moskalenko.github.io/mojo-ru/install/macos-linux/) — десять минут                       |
+| 🐍 Пишете на Python               | [Первая программа](https://v-moskalenko.github.io/mojo-ru/basics/first-program/) — разбор построчно                    |
+| 🤔 Ещё присматриваетесь           | [Зачем нужен Mojo](https://v-moskalenko.github.io/mojo-ru/start/why-mojo/) — честное сравнение с Python, C++ и Rust    |
+| 📰 Читали статьи про Mojo раньше  | [Устаревшие конструкции](https://v-moskalenko.github.io/mojo-ru/python-to-mojo/outdated/) — что сломалось к версии 1.0 |
+
+## Попробовать прямо сейчас
+
+На Linux, macOS (Apple Silicon) или в WSL:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh   # менеджер пакетов
+uv init hello-mojo && cd hello-mojo
+uv add mojo                                        # сам Mojo
+echo 'def main():
+    print("Привет, Mojo!")' > hello.mojo
+uv run mojo hello.mojo
+```
+
+Если что-то пошло не так — есть
+[справочник ошибок](https://v-moskalenko.github.io/mojo-ru/install/troubleshooting/)
+на два десятка сообщений, от кодов WSL до `Illegal instruction`.
+
+## Что уже написано
+
+**Готово к чтению:**
+
+- Зачем нужен Mojo · Первая программа · Устаревшие конструкции · Словарь терминов
+- Раздел «Установка» целиком: системные требования, Windows через WSL,
+  macOS и Linux, настройка VS Code, удалённая разработка, диагностика проблем
+
+**В работе:** базовый синтаксис, владение значениями, метапрограммирование,
+SIMD и производительность, взаимодействие с Python и C, практические проекты.
+
+Всего в плане 9 разделов и 54 главы — структура целиком видна
+[на сайте](https://v-moskalenko.github.io/mojo-ru/) в боковом меню: у ненаписанных
+глав стоит пометка «в работе», но их план уже зафиксирован.
+
+## Почему этот курс
+
+**Русский язык, а не машинный перевод.** Термины подобраны осознанно
+и используются одинаково на всех страницах. При первом упоминании — русский
+вариант и оригинал в скобках, чтобы вы могли гуглить на английском
+и не теряться в официальной документации. Есть
+[словарь](https://v-moskalenko.github.io/mojo-ru/reference/glossary/).
+
+**Windows — полноценная платформа.** Mojo не работает в Windows напрямую,
+только через WSL. Здесь это не сноска мелким шрифтом, а отдельная большая
+глава: WSL2, uv, VS Code Remote, SSH-ключи и разбор типичных ошибок.
+
+**Код, который компилируется.** Каждый пример лежит в репозитории отдельным
+файлом и прогоняется на настоящем компиляторе Mojo в CI — раз в неделю
+и при каждом изменении. Под примерами показан реальный вывод программы.
+
+**Опора на первоисточник.** Теория сверена с официальным мануалом Modular.
+Конструкции, устаревшие к версии 1.0 — `fn`, `let`, `inout`, `@value` —
+отмечены явно: в интернете полно статей, где они ещё живы.
+
+## Нашли ошибку или что-то непонятно
+
+- **Ошибка в тексте или коде** — внизу каждой страницы сайта есть ссылка
+  «Редактировать страницу», она ведёт прямо в редактор GitHub.
+- **Не хватает темы, или объяснение не зашло** —
+  [заведите issue](https://github.com/V-Moskalenko/mojo-ru/issues/new/choose),
+  есть готовые шаблоны. Главы пишутся в порядке спроса, так что это реально работает.
+- **Вопрос про сам язык** — [форум Modular](https://forum.modular.com/),
+  там отвечают в том числе разработчики Mojo.
+
+Курс делается открыто, и любая правка приветствуется — от опечатки
+до целой главы. Как всё устроено внутри, описано в
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+<details>
+<summary><b>Собрать сайт локально</b></summary>
 
 Нужен Node.js 22+.
 
 ```bash
+git clone https://github.com/V-Moskalenko/mojo-ru.git
+cd mojo-ru
 npm install
-npm run dev      # локальный сервер разработки
-npm run build    # сборка в dist/ (заодно проверяет внутренние ссылки)
-npm run preview  # посмотреть собранный сайт
+npm run dev      # http://localhost:4321/mojo-ru/
 ```
 
-Дополнительно:
+Остальные команды:
 
 ```bash
+npm run build           # сборка в dist/ + проверка всех внутренних ссылок
+npm run format          # причесать исходники (тексты глав не трогает)
 npm run stubs           # создать недостающие страницы-заглушки по плану курса
-npm run examples:check  # прогнать примеры на настоящем Mojo (нужен Linux/macOS/WSL с Mojo)
-npm run format          # причесать исходники (контент глав не трогает)
+npm run examples:check  # прогнать примеры на настоящем Mojo (нужен Linux/macOS/WSL)
+npm run og              # пересобрать картинку для соцсетей
 ```
 
-## Структура
+Структура репозитория:
 
 ```
 src/
-  content/docs/       контент курса (.mdx): корень — русская версия, en/ — английская
-  components/         PyMojo, Result, Quiz, CompilerError, Footer, Hero, ThemeProvider
+  content/docs/       главы курса (.mdx): корень — русская версия, en/ — английская
+  components/         PyMojo, Result, Quiz, CompilerError, Hero, Head, Footer
   styles/theme.css    дизайн-система
-  grammars/           TextMate-грамматика Mojo для подсветки
-  plugins/            rehype-плагин базового пути для ссылок в главах
-  utils/link.ts       withBase() для ссылок, которые передаются в компоненты
-  consts.ts           версия Mojo и общие ссылки
+  grammars/           TextMate-грамматика Mojo для подсветки кода
+  plugins/, utils/    базовый путь для ссылок при публикации на GitHub Pages
 examples/             примеры кода: .mojo рядом с .out (ожидаемый вывод)
-scripts/              генератор заглушек, проверка примеров, скриншоты
-notes/                рабочие заметки авторов, в сайт не попадают
-.github/workflows/    сборка и публикация, еженедельная проверка примеров
+scripts/              генератор заглушек, проверка примеров, скриншоты, превью
+.github/workflows/    публикация сайта и еженедельная проверка примеров
+templates/hello-mojo  готовый шаблон проекта для читателей (в том числе Codespaces)
 ```
 
-## Развёртывание
+Сайт собран на [Astro](https://astro.build/) +
+[Starlight](https://starlight.astro.build/) и публикуется на GitHub Pages
+автоматически при пуше в `main`.
 
-Сайт публикуется на GitHub Pages автоматически при пуше в `main`.
-
-Что нужно включить один раз в настройках репозитория:
-**Settings → Pages → Build and deployment → Source: GitHub Actions**.
-
-### Переезд на собственный домен
-
-Меняются ровно две строки в `astro.config.mjs`:
-
-```js
-const SITE = 'https://ваш-домен.ru';
-const BASE = '/';
-```
-
-Ссылки внутри глав, ассеты, sitemap и кнопки на главной подстроятся сами —
-за это отвечают `src/plugins/rehype-base-links.mjs` и `withBase()`.
-Дополнительно нужно положить файл `public/CNAME` с доменом и указать домен
-в Settings → Pages.
-
-## Принципы проекта
-
-1. **Ни одного примера, который не компилируется.** Код живёт в `examples/`
-   отдельными файлами и прогоняется в CI, а не только внутри markdown.
-2. **Опора на официальный мануал.** Теория сверяется с
-   [mojolang.org](https://mojolang.org/docs/manual/). Конструкции, устаревшие
-   до 1.0 (`fn`, `let`, `inout`, `@value`), явно помечаются как устаревшие.
-3. **Единая терминология.** Решение по каждому термину принимается один раз
-   и действует на всех страницах — см. [словарь](src/content/docs/reference/glossary.mdx).
-4. **Windows — полноценная платформа.** Установка через WSL разобрана
-   подробно, а не сноской мелким шрифтом.
-
-## Как помочь
-
-Правки, новые главы и замечания приветствуются — см. [CONTRIBUTING.md](CONTRIBUTING.md).
-Самый быстрый способ: ссылка «Редактировать страницу» внизу любой страницы сайта.
+</details>
 
 ## Лицензии
 
-- Тексты курса — [CC BY 4.0](LICENSE-CONTENT)
+- Тексты курса — [CC BY 4.0](LICENSE-CONTENT): берите, переводите, используйте,
+  в том числе в коммерческих проектах, — только сошлитесь на источник
 - Код сайта и примеров — [Apache 2.0](LICENSE-CODE)
-- TextMate-грамматика Mojo — Apache 2.0, из [modular/vscode-mojo](https://github.com/modular/vscode-mojo),
-  копия лицензии в `src/grammars/LICENSE-vscode-mojo.txt`
+- TextMate-грамматика Mojo — Apache 2.0, из
+  [modular/vscode-mojo](https://github.com/modular/vscode-mojo)
 
-## Источники и благодарности
+## Источники
 
 - [Официальный мануал Mojo](https://mojolang.org/docs/manual/) — основной источник фактуры
-- [Mojo Miji](https://mojo-lang.com/miji/) Юйхао Чжу — референс по структуре и подаче.
-  Книга под лицензией CC BY-NC-ND 4.0, поэтому её текст здесь **не переводится
-  и не заимствуется**: используются только идеи организации материала.
+- [Mojo Miji](https://mojo-lang.com/miji/) Юйхао Чжу — референс по структуре и подаче
+  материала. Книга под лицензией CC BY-NC-ND 4.0, поэтому её текст здесь
+  **не переводится и не заимствуется**: используются только идеи организации курса
+
+<div align="center">
+
+Если курс оказался полезен — поставьте ⭐ и расскажите тем, кому он тоже пригодится.
+
+</div>
