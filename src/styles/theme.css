@@ -592,3 +592,16 @@ header.header {
   font-family: var(--sl-font-mono);
   font-size: 0.85em;
 }
+
+/* Строка о лицензии в подвале — тихая, но всегда на виду */
+.mojo-license {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  color: var(--sl-color-gray-3);
+}
+
+.mojo-license a {
+  color: var(--sl-color-gray-2);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}

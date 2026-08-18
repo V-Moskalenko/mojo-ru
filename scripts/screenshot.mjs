@@ -16,7 +16,7 @@ const MIME = {
 
 const server = createServer((req, res) => {
   // сайт собирается с базовым путём (GitHub Pages), локально отдаём как есть
-  const raw = decodeURIComponent(req.url.split('?')[0]).replace(/^\/mojo-ru/, '') || '/';
+  const raw = decodeURIComponent(req.url.split('?')[0]) || '/';
   let p = join(DIST, raw);
   if (existsSync(p) && statSync(p).isDirectory()) p = join(p, 'index.html');
   if (!existsSync(p)) {
@@ -32,14 +32,14 @@ const browser = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
 });
 const shots = [
-  ['/mojo-ru/', 'home', 1440, 1000],
-  ['/mojo-ru/install/windows-wsl/', 'install', 1440, 1200],
-  ['/mojo-ru/basics/first-program/', 'first-program', 1440, 1200],
-  ['/mojo-ru/python-to-mojo/outdated/', 'outdated', 1440, 1100],
-  ['/mojo-ru/install/troubleshooting/', 'troubleshooting', 1440, 1200],
-  ['/mojo-ru/install/vscode/', 'vscode', 1440, 1200],
-  ['/mojo-ru/python-to-mojo/different/', 'different', 1440, 1250],
-  ['/mojo-ru/basics/first-program/', 'mobile', 420, 900],
+  ['/', 'home', 1440, 1000],
+  ['/install/windows-wsl/', 'install', 1440, 1200],
+  ['/basics/first-program/', 'first-program', 1440, 1200],
+  ['/python-to-mojo/outdated/', 'outdated', 1440, 1100],
+  ['/install/troubleshooting/', 'troubleshooting', 1440, 1200],
+  ['/install/vscode/', 'vscode', 1440, 1200],
+  ['/python-to-mojo/different/', 'different', 1440, 1250],
+  ['/basics/first-program/', 'mobile', 420, 900],
 ];
 for (const [url, name, w, h] of shots) {
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
@@ -53,7 +53,7 @@ const page = await browser.newPage({
   viewport: { width: 1440, height: 1100 },
   deviceScaleFactor: 2,
 });
-await page.goto('http://localhost:4321/mojo-ru/basics/first-program/', {
+await page.goto('http://localhost:4321/basics/first-program/', {
   waitUntil: 'networkidle',
 });
 await page.evaluate(() => (document.documentElement.dataset.theme = 'light'));

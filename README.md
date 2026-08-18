@@ -7,12 +7,12 @@
 **Бесплатный курс по языку программирования Mojo 1.0 на русском языке.**
 От «у меня Windows и я ничего не понимаю» до собственной библиотеки с SIMD.
 
-### [📖 Читать курс →](https://v-moskalenko.github.io/mojo-ru/)
+### [📖 Читать курс →](https://mojo-lang.ru/)
 
 [![Mojo 1.0](https://img.shields.io/badge/Mojo-1.0-ff7a2f)](https://mojolang.org/)
 [![Сборка сайта](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/deploy.yml/badge.svg)](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/deploy.yml)
 [![Примеры компилируются](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/check-examples.yml/badge.svg)](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/check-examples.yml)
-[![Лицензия текста: CC BY 4.0](https://img.shields.io/badge/текст-CC%20BY%204.0-blue)](LICENSE-CONTENT)
+[![Лицензия текста: CC BY-NC-SA 4.0](https://img.shields.io/badge/текст-CC%20BY--NC--SA%204.0-blue)](LICENSE-CONTENT)
 
 </div>
 
@@ -31,13 +31,13 @@ Mojo — язык от создателя LLVM и Swift Криса Латтне�
 
 ## С чего начать
 
-| Вы                                | Начните отсюда                                                                                                         |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 💻 Работаете на Windows           | [Установка через WSL](https://v-moskalenko.github.io/mojo-ru/install/windows-wsl/) — самая подробная глава курса       |
-| 🍏 Mac на Apple Silicon или Linux | [Установка через uv](https://v-moskalenko.github.io/mojo-ru/install/macos-linux/) — десять минут                       |
-| 🐍 Пишете на Python               | [Первая программа](https://v-moskalenko.github.io/mojo-ru/basics/first-program/) — разбор построчно                    |
-| 🤔 Ещё присматриваетесь           | [Зачем нужен Mojo](https://v-moskalenko.github.io/mojo-ru/start/why-mojo/) — честное сравнение с Python, C++ и Rust    |
-| 📰 Читали статьи про Mojo раньше  | [Устаревшие конструкции](https://v-moskalenko.github.io/mojo-ru/python-to-mojo/outdated/) — что сломалось к версии 1.0 |
+| Вы                                | Начните отсюда                                                                                       |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 💻 Работаете на Windows           | [Установка через WSL](https://mojo-lang.ru/install/windows-wsl/) — самая подробная глава курса       |
+| 🍏 Mac на Apple Silicon или Linux | [Установка через uv](https://mojo-lang.ru/install/macos-linux/) — десять минут                       |
+| 🐍 Пишете на Python               | [Первая программа](https://mojo-lang.ru/basics/first-program/) — разбор построчно                    |
+| 🤔 Ещё присматриваетесь           | [Зачем нужен Mojo](https://mojo-lang.ru/start/why-mojo/) — честное сравнение с Python, C++ и Rust    |
+| 📰 Читали статьи про Mojo раньше  | [Устаревшие конструкции](https://mojo-lang.ru/python-to-mojo/outdated/) — что сломалось к версии 1.0 |
 
 ## Попробовать прямо сейчас
 
@@ -53,7 +53,7 @@ uv run mojo hello.mojo
 ```
 
 Если что-то пошло не так — есть
-[справочник ошибок](https://v-moskalenko.github.io/mojo-ru/install/troubleshooting/)
+[справочник ошибок](https://mojo-lang.ru/install/troubleshooting/)
 на два десятка сообщений, от кодов WSL до `Illegal instruction`.
 
 ## Что уже написано
@@ -68,7 +68,7 @@ uv run mojo hello.mojo
 SIMD и производительность, взаимодействие с Python и C, практические проекты.
 
 Всего в плане 9 разделов и 54 главы — структура целиком видна
-[на сайте](https://v-moskalenko.github.io/mojo-ru/) в боковом меню: у ненаписанных
+[на сайте](https://mojo-lang.ru/) в боковом меню: у ненаписанных
 глав стоит пометка «в работе», но их план уже зафиксирован.
 
 ## Почему этот курс
@@ -77,7 +77,7 @@ SIMD и производительность, взаимодействие с Py
 и используются одинаково на всех страницах. При первом упоминании — русский
 вариант и оригинал в скобках, чтобы вы могли гуглить на английском
 и не теряться в официальной документации. Есть
-[словарь](https://v-moskalenko.github.io/mojo-ru/reference/glossary/).
+[словарь](https://mojo-lang.ru/reference/glossary/).
 
 **Windows — полноценная платформа.** Mojo не работает в Windows напрямую,
 только через WSL. Здесь это не сноска мелким шрифтом, а отдельная большая
@@ -114,7 +114,7 @@ SIMD и производительность, взаимодействие с Py
 git clone https://github.com/V-Moskalenko/mojo-ru.git
 cd mojo-ru
 npm install
-npm run dev      # http://localhost:4321/mojo-ru/
+npm run dev      # http://localhost:4321/
 ```
 
 Остальные команды:
@@ -150,9 +150,11 @@ templates/hello-mojo  готовый шаблон проекта для чита
 
 ## Лицензии
 
-- Тексты курса — [CC BY 4.0](LICENSE-CONTENT): берите, переводите, используйте,
-  в том числе в коммерческих проектах, — только сошлитесь на источник
-- Код сайта и примеров — [Apache 2.0](LICENSE-CODE)
+- Тексты курса — [CC BY-NC-SA 4.0](LICENSE-CONTENT): читайте, копируйте,
+  переводите и дорабатывайте со ссылкой на источник. Нельзя одно —
+  зарабатывать на них; производные работы остаются на тех же условиях
+- Код сайта и примеров — [Apache 2.0](LICENSE-CODE): его можно брать
+  куда угодно, включая рабочие проекты. Примеры для того и написаны
 - TextMate-грамматика Mojo — Apache 2.0, из
   [modular/vscode-mojo](https://github.com/modular/vscode-mojo)
 

@@ -46,7 +46,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" v
   </g>
 
   <text x="312" y="500" font-family="Inter, Arial, sans-serif" font-size="24" fill="#9A918A">
-    Бесплатно и открыто · v-moskalenko.github.io/mojo-ru
+    Бесплатно и открыто · mojo-lang.ru
   </text>
 </svg>`;
 

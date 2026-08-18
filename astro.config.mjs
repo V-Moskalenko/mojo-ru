@@ -7,17 +7,15 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { rehypeBaseLinks } from './src/plugins/rehype-base-links.mjs';
 
 /**
- * Адрес сайта. Сейчас это проектная страница GitHub Pages, поэтому сайт живёт
- * не в корне домена, а в подпапке `/mojo-ru/`.
+ * Адрес сайта. Собственный домен, сайт лежит в корне — поэтому BASE = '/'.
  *
- * Когда появится свой домен, менять нужно ровно две строки ниже:
- *   SITE = 'https://ваш-домен.ru'
- *   BASE = '/'
- * Всё остальное — ссылки в главах, ассеты, sitemap — подстроится само.
- * Значения можно переопределить переменными окружения, не трогая файл.
+ * Механика базового пути осталась в проекте на случай переезда: если сайт
+ * снова окажется в подпапке, достаточно поменять эти две строки, и ссылки
+ * в главах, ассеты и sitemap подстроятся сами. Значения можно переопределить
+ * переменными окружения, не трогая файл.
  */
-const SITE = process.env.SITE_URL ?? 'https://v-moskalenko.github.io';
-const BASE = process.env.SITE_BASE ?? '/mojo-ru';
+const SITE = process.env.SITE_URL ?? 'https://mojo-lang.ru';
+const BASE = process.env.SITE_BASE ?? '/';
 
 /** Репозиторий проекта — используется для ссылок «редактировать страницу». */
 const REPO = 'https://github.com/V-Moskalenko/mojo-ru';
