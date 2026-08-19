@@ -1,31 +1,597 @@
 ---
 title: Структуры
-description: Объявление структур, конструкторы, методы и трейты копирования.
+description: "Структуры в Mojo 1.0 — поля, конструкторы, методы, константы, трейты копирования и то, чем struct принципиально отличается от питоновского class."
 sidebar:
   order: 9
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.0.0
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Code } from '@astrojs/starlight/components';
+import cart from '../../../../examples/basics/structs/cart.mojo?raw';
+import Result from '../../../components/Result.astro';
+import PyMojo from '../../../components/PyMojo.astro';
+import CompilerError from '../../../components/CompilerError.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+Классов в Mojo 1.0 нет — совсем:
+
+<CompilerError msg="error: classes are not supported yet">
+  <Fragment slot="meaning">
+    Слово `class` компилятор знает, но пока не поддерживает.
+  </Fragment>
+  <Fragment slot="fix">
+    Используйте `struct`. Это не «урезанный класс», а другой инструмент:
+    структура полностью раскладывается на этапе компиляции, поэтому она
+    быстрее — и поэтому же в ней нельзя менять набор полей на ходу.
+  </Fragment>
+</CompilerError>
+
+## Объявление
+
+```mojo
+struct Point:
+    var x: Int
+    var y: Int
+
+    def __init__(out self, x: Int, y: Int):
+        self.x = x
+        self.y = y
+
+    def distance_sq(self) -> Int:
+        return self.x * self.x + self.y * self.y
+
+
+def main():
+    var p = Point(3, 4)
+    print(p.x, p.y, p.distance_sq())
+```
+
+<Result>
+3 4 25
+</Result>
+
+Три вещи, которые видит питонист сразу:
+
+- поля объявляются заранее, с типами, через `var`;
+- вместо `self` в первом аргументе конструктора — `out self`;
+- `self` в обычных методах есть, но передаётся неявно, как в Python.
+
+`out` означает «этот аргумент функция создаёт». В момент входа
+в `__init__` объекта ещё нет — он появляется, когда все поля получат
+значения. Компилятор за этим следит.
+
+## Набор полей фиксирован
+
+Это главное отличие от Python:
+
+<CompilerError msg="error: 'Point' value has no attribute 'z'">
+  <Fragment slot="meaning">
+    Вы попытались добавить поле объекту после создания — `p.z = 5`.
+    В Mojo так нельзя: набор полей определён при компиляции, из него
+    складывается размер структуры в памяти.
+  </Fragment>
+  <Fragment slot="fix">
+    Объявите поле в самой структуре. Если набор данных заранее неизвестен,
+    вам нужен не struct, а словарь.
+  </Fragment>
+</CompilerError>
+
+Отсюда же и скорость: обращение к полю — это чтение по известному
+смещению, а не поиск по хеш-таблице `__dict__`, как в Python.
+
+Значения по умолчанию у полей тоже не поддерживаются — попытка написать
+`var x: Int = 0` даёт `error: unknown tokens at the end of a declaration`.
+Начальные значения задаются в конструкторе.
+
+<PyMojo>
+  <Fragment slot="python">
+```python
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+p = Point(3, 4)
+p.z = 5          # можно
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+struct Point:
+    var x: Int
+    var y: Int
+
+    def __init__(out self, x: Int, y: Int):
+        self.x = x
+        self.y = y
+```
+  </Fragment>
+  <Fragment slot="note">
+    Python хранит поля в словаре, поэтому их можно добавлять на ходу.
+    Mojo раскладывает структуру в памяти заранее — зато обращение к полю
+    идёт по смещению, известному на этапе компиляции, а не через поиск
+    по хеш-таблице.
+  </Fragment>
+</PyMojo>
+
+## `@fieldwise_init` вместо ручного конструктора
+
+Конструктор, который просто раскладывает аргументы по полям, писать
+не обязательно:
+
+```mojo
+@fieldwise_init
+struct Point:
+    var x: Int
+    var y: Int
+
+
+def main():
+    var p = Point(3, 4)
+    print(p.x, p.y)
+```
+
+<Result>
+3 4
+</Result>
+
+Декоратор создаёт конструктор с аргументами в порядке объявления полей.
+В курсе он встречается постоянно — просто потому, что большинству структур
+ничего другого и не нужно.
+
+<Aside type="caution" title="Вместе со своим `__init__` не работает">
+  Если добавить собственный конструктор к структуре с `@fieldwise_init`,
+  компилятор откажется:
+
+  ```text
+  error: 'Temperature' has an explicitly declared fieldwise initializer
+  ```
+
+  Выбирайте одно: либо декоратор, либо все конструкторы руками.
 </Aside>
 
-## Что будет в этой главе
+## Несколько конструкторов
 
-- Объявление struct и полей
-- Конструктор def __init__(out self)
-- Декоратор @fieldwise_init
-- Трейты Copyable и Movable
+`__init__` перегружается так же, как обычные функции:
 
-## Хотите ускорить
+```mojo
+struct Temperature:
+    var celsius: Float64
 
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+    def __init__(out self, celsius: Float64):
+        self.celsius = celsius
+
+    def __init__(out self, *, fahrenheit: Float64):
+        self.celsius = (fahrenheit - 32.0) / 1.8
+
+
+def main():
+    var a = Temperature(20.0)
+    var b = Temperature(fahrenheit=68.0)
+    print(a.celsius, b.celsius)
+```
+
+<Result>
+20.0 20.0
+</Result>
+
+Звёздочка здесь не украшение, а необходимость. Два конструктора с одним
+позиционным `Float64` объявить нельзя — имена аргументов в сигнатуру
+не входят:
+
+```text
+error: redefinition of function '__init__' with identical signature
+```
+
+Слово `*` делает `fahrenheit` только именованным, сигнатуры расходятся —
+и заодно вызов `Temperature(fahrenheit=68.0)` читается однозначно.
+
+## Методы
+
+По умолчанию метод получает `self` **только для чтения**. Чтобы менять
+поля, нужен `mut self`:
+
+```mojo
+@fieldwise_init
+struct Counter(ImplicitlyCopyable):
+    var value: Int
+
+    def bump(mut self):
+        self.value += 1
+
+    def show(self):
+        print("значение:", self.value)
+
+
+def main():
+    var c = Counter(0)
+    c.bump()
+    c.bump()
+    c.show()
+```
+
+<Result>
+значение: 2
+</Result>
+
+Это те же соглашения об аргументах, что и у обычных функций из главы
+[Функции](/basics/functions/) — просто применённые к `self`.
+
+Есть и статические методы, без `self`:
+
+```mojo
+struct Config:
+    var size: Int
+
+    def __init__(out self, size: Int):
+        self.size = size
+
+    @staticmethod
+    def default() -> Config:
+        return Config(16)
+
+
+def main():
+    print(Config.default().size)
+```
+
+<Result>
+16
+</Result>
+
+## Константы внутри структуры
+
+Значение, известное на этапе компиляции, объявляется через `comptime`
+и живёт у типа, а не у экземпляра:
+
+```mojo
+struct Circle:
+    var radius: Float64
+    comptime PI = 3.14159
+
+    def __init__(out self, radius: Float64):
+        self.radius = radius
+
+    def area(self) -> Float64:
+        return Self.PI * self.radius * self.radius
+
+
+def main():
+    print(Circle(2.0).area())
+    print(Circle.PI)
+```
+
+<Result>
+12.56636
+3.14159
+</Result>
+
+Внутри структуры к ней обращаются через `Self`, снаружи — через имя типа.
+Памяти в экземпляре такая константа не занимает вовсе.
+
+## Копирование: три уровня
+
+Вот место, где Mojo расходится с Python сильнее всего. Обычное
+присваивание структуры **не работает**:
+
+<CompilerError msg="error: value of type 'Point' cannot be implicitly copied, it does not conform to 'ImplicitlyCopyable'">
+  <Fragment slot="meaning">
+    `var b = a` для структуры — это запрос на копию. Mojo не делает копий
+    молча: копия может оказаться дорогой, и вы должны знать, что она есть.
+  </Fragment>
+  <Fragment slot="fix">
+    Компилятор перечисляет варианты прямо в подсказках:
+
+    ```text
+    note: consider transferring the value with '^'
+    note: you can copy it explicitly with '.copy()'
+    ```
+
+    Второй совет появляется, только если структура объявлена `Copyable`.
+  </Fragment>
+</CompilerError>
+
+Уровней ровно три, и выбирает их автор структуры:
+
+| Что объявлено | Что можно делать |
+| --- | --- |
+| ничего | только передать владение: `var b = a^` |
+| `Copyable` | плюс явная копия: `var b = a.copy()` |
+| `ImplicitlyCopyable` | плюс обычное `var b = a` |
+
+```mojo
+@fieldwise_init
+struct Point(Copyable):
+    var x: Int
+
+
+def main():
+    var a = Point(1)
+    var b = a.copy()
+    var c = a^
+    print(b.x, c.x)
+```
+
+<Result>
+1 1
+</Result>
+
+С `ImplicitlyCopyable` структура ведёт себя как обычное число: копия
+независима, изменение одной переменной не трогает другую.
+
+```mojo
+@fieldwise_init
+struct Point(ImplicitlyCopyable):
+    var x: Int
+
+
+def main():
+    var a = Point(1)
+    var b = a
+    b.x = 99
+    print(a.x, b.x)
+```
+
+<Result>
+1 99
+</Result>
+
+<Aside type="tip" title="Какой уровень выбирать">
+  Для маленьких структур из чисел — `ImplicitlyCopyable`: копия стоит
+  копейки, а код читается привычно.
+
+  Для структур с большими данными внутри — списками, буферами, открытыми
+  файлами — лучше `Copyable` или вовсе ничего: пусть каждая копия будет
+  видна в коде. Именно так стандартная библиотека защищает вас от случайного
+  копирования гигабайтного массива.
+</Aside>
+
+Перемещение (`^`) доступно всегда и никаких трейтов не требует: структура
+просто переезжает в новую переменную, старая после этого недоступна.
+
+## Что компилятор делает за вас
+
+Некоторые трейты не требуют ни строчки кода — достаточно объявить их
+в скобках.
+
+### Печать
+
+```mojo
+@fieldwise_init
+struct Point(ImplicitlyCopyable, Writable):
+    var x: Int
+    var y: Int
+
+
+def main():
+    print(Point(3, 4))
+```
+
+<Result>
+Point(x=3, y=4)
+</Result>
+
+Похоже на `@dataclass` из Python, только бесплатно: представление
+собирается на этапе компиляции.
+
+Свой вид печати задаётся методом `write_to`:
+
+```mojo
+@fieldwise_init
+struct Point(ImplicitlyCopyable, Writable):
+    var x: Int
+
+    def write_to[W: Writer](self, mut writer: W):
+        writer.write("[", self.x, "]")
+
+
+def main():
+    print(Point(5))
+```
+
+<Result>
+[5]
+</Result>
+
+### Ключ словаря
+
+```mojo
+@fieldwise_init
+struct City(ImplicitlyCopyable, KeyElement):
+    var name: String
+
+
+def main() raises:
+    var codes = Dict[City, Int]()
+    codes[City("Москва")] = 495
+    print(codes[City("Москва")])
+```
+
+<Result>
+495
+</Result>
+
+Трейт `KeyElement` — это «умею сравниваться и хешироваться». Реализация
+выводится из полей, а вместе с ней бесплатно появляется и оператор `==`.
+
+<Aside type="caution" title="Само по себе `__eq__` не появляется">
+  Сравнение приносят те трейты, которым оно нужно, — `KeyElement`
+  и `Comparable`. У структуры без них `==` не работает:
+
+  ```text
+  error: 'Point' does not implement the '__eq__' method
+  ```
+
+  Если словарь вам не нужен, а сравнивать хочется, напишите метод сами —
+  зато сами и решите, какие поля считать значимыми. В примере в конце главы
+  два товара считаются одинаковыми при совпадении названия, независимо
+  от количества.
+</Aside>
+
+Из имеющихся в 1.0 трейтов чаще всего встречаются `Copyable`, `Movable`,
+`ImplicitlyCopyable`, `Deinitable`, `Writable`, `Hashable`, `KeyElement`,
+`Sized`, `Comparable`, `Boolable`, `Intable`, `Defaultable`. Питоновских
+`Stringable` и `Representable` в 1.0 нет — за печать отвечает `Writable`.
+
+## Уничтожение
+
+Метод `__deinit__` вызывается, когда значение больше не нужно:
+
+```mojo
+@fieldwise_init
+struct Resource:
+    var name: String
+
+    def __deinit__(deinit self):
+        print("освобождаем:", self.name)
+
+
+def main():
+    var r = Resource("файл")
+    print("работаем с", r.name)
+    print("конец main")
+```
+
+<Result>
+работаем с файл
+освобождаем: файл
+конец main
+</Result>
+
+Посмотрите на порядок внимательно: освобождение произошло **до** последней
+строки. Mojo уничтожает значение сразу после его последнего использования —
+не в конце области видимости, как C++, и не по счётчику ссылок с досбором
+циклов, как CPython.
+
+<Aside type="note" title="`__del__` устарел">
+  Питоновское имя ещё принимается, но с предупреждением:
+
+  ```text
+  warning: '__del__' is deprecated; use '__deinit__'
+  ```
+
+  В новом коде пишем `__deinit__`.
+</Aside>
+
+## Наследования нет
+
+<CompilerError msg="error: structs only conform to traits or trait compositions; remove the struct type from the conformance list">
+  <Fragment slot="meaning">
+    В скобках после имени структуры перечисляются только трейты. Наследовать
+    структуру от структуры нельзя.
+  </Fragment>
+  <Fragment slot="fix">
+    Два обычных решения: **композиция** — вложить одну структуру полем
+    в другую; или **трейт** — описать общее поведение и реализовать его
+    в нескольких структурах.
+  </Fragment>
+</CompilerError>
+
+Для питониста это звучит как потеря, но на практике композиция почти всегда
+выигрывает у наследования в читаемости — а трейты покрывают те случаи, ради
+которых наследование обычно и заводят.
+
+## Обобщённые структуры
+
+Структура может работать с любым типом — тип указывается параметром
+в квадратных скобках:
+
+```mojo
+@fieldwise_init
+struct Pair[T: ImplicitlyCopyable & Writable & Deinitable](ImplicitlyCopyable):
+    var first: Self.T
+    var second: Self.T
+
+    def show(self):
+        print(self.first, self.second)
+
+
+def main():
+    var a = Pair[Int](1, 2)
+    var b = Pair[String]("раз", "два")
+    a.show()
+    b.show()
+```
+
+<Result>
+1 2
+раз два
+</Result>
+
+Два момента, на которых спотыкаются все:
+
+1. Требования к типу перечисляются через `&`, и каждое здесь работает:
+   `Deinitable` нужен, чтобы значение вообще можно было положить в поле
+   (`error: field 'first' has non-'Deinitable' type 'T'`),
+   `ImplicitlyCopyable` — чтобы сработал `@fieldwise_init` и сама `Pair`
+   умела копироваться, `Writable` — чтобы `show()` могла её напечатать.
+2. Внутри структуры на параметр ссылаются как `Self.T`:
+
+<CompilerError msg="error: unqualified access to struct parameter 'T'; use 'Self.T' instead">
+  <Fragment slot="meaning">
+    Вы написали `var first: T`. Внутри тела структуры её собственные
+    параметры пишутся через `Self`.
+  </Fragment>
+  <Fragment slot="fix">
+    `var first: Self.T`. Решение компилятор подсказывает прямо в тексте
+    ошибки.
+  </Fragment>
+</CompilerError>
+
+Так устроены и `List[Int]`, и `Dict[String, Int]` — никакой особой магии
+в них нет, они написаны на том же Mojo.
+
+## Всё вместе
+
+Корзина интернет-магазина: две структуры, статический конструктор,
+константы, своя печать и своё сравнение.
+
+<Code code={cart} lang="mojo" title="cart.mojo" />
+
+<Result>
+Клавиатура x1 = 2500 руб.
+Мышь x2 = 1800 руб.
+Коврик x1 = 400 руб.
+товаров на 4700 руб.
+доставка: 0 руб.
+итого: 4700 руб.
+
+порог бесплатной доставки: 3000
+первая позиция — клавиатура: True
+
+Кабель x1 = 350 руб.
+товаров на 350 руб.
+доставка: 300 руб.
+итого: 650 руб.
+</Result>
+
+<Quiz>
+  <QuizItem q="Почему `var b = a` для структуры не компилируется?">
+    Mojo не копирует молча. Структура должна объявить `ImplicitlyCopyable`,
+    чтобы обычное присваивание делало копию. Иначе есть два явных пути:
+    передать владение через `a^` или, если объявлен `Copyable`, написать
+    `a.copy()`.
+  </QuizItem>
+  <QuizItem q="Что напечатает `print(p)` для структуры с трейтом `Writable`, если не писать `write_to`?">
+    Имя типа и все поля: `Point(x=3, y=4)`. Представление собирается
+    компилятором из объявления структуры, как у `@dataclass` в Python,
+    только без затрат во время выполнения.
+  </QuizItem>
+  <QuizItem q="Когда вызывается `__deinit__`?">
+    Сразу после последнего использования значения, а не в конце функции.
+    Поэтому в примере строка «освобождаем» печатается раньше, чем «конец
+    main».
+  </QuizItem>
+  <QuizItem q="Чем заменить наследование?">
+    Композицией — вложить структуру полем в другую структуру — или трейтом,
+    если нужно описать общее поведение для нескольких типов. Наследования
+    структур в Mojo нет: в скобках перечисляются только трейты.
+  </QuizItem>
+</Quiz>
+
+## Что дальше
+
+[Модули и пакеты](/basics/modules/): как разложить код по файлам,
+что такое `__init__.mojo` и чем `mojo package` отличается от простого
+импорта соседнего файла.

@@ -1,31 +1,252 @@
 ---
 title: Управляющие конструкции
-description: Условия, циклы и сопоставление в Mojo.
+description: Условия и циклы в Mojo 1.0 — что перенеслось из Python дословно, как менять элементы прямо в цикле и чего в языке пока нет.
 sidebar:
   order: 7
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.0.0
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Code } from '@astrojs/starlight/components';
+import loops from '../../../../examples/basics/control-flow/loops.mojo?raw';
+import Result from '../../../components/Result.astro';
+import PyMojo from '../../../components/PyMojo.astro';
+import CompilerError from '../../../components/CompilerError.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+Самая «питоновская» глава раздела: почти всё переносится дословно.
+Поэтому сосредоточимся на трёх вещах, которые всё-таки отличаются, —
+и на одной, которой в Mojo пока нет вовсе.
+
+## Ветвление
+
+```mojo
+def main():
+    var temperature = 25
+
+    if temperature > 30:
+        print("жарко")
+    elif temperature > 20:
+        print("тепло")
+    else:
+        print("прохладно")
+
+    print("одеваться:", "легко" if temperature > 20 else "тепло")
+```
+
+<Result>
+тепло
+одеваться: легко
+</Result>
+
+`if` / `elif` / `else` и тернарный оператор — без единого отличия от Python.
+
+## Чего нет: `match`
+
+Если вы привыкли к сопоставлению с образцом из Python 3.10, придётся
+обойтись без него:
+
+<CompilerError msg="error: unexpected token in expression">
+  <Fragment slot="meaning">
+    Конструкция `match` / `case` в Mojo 1.0 не поддерживается — компилятор
+    не знает такого ключевого слова и спотыкается на нём как на обычном
+    выражении.
+  </Fragment>
+  <Fragment slot="fix">
+    Пишите цепочку `if` / `elif` / `else`. Для разбора по типам в Mojo есть
+    более мощный инструмент — [перегрузка функций](/basics/functions/),
+    которая решает задачу на этапе компиляции.
+  </Fragment>
+</CompilerError>
+
+## Циклы
+
+`while` и `for ... in` работают привычно, `range` принимает те же три
+формы, включая отрицательный шаг:
+
+```mojo
+def main():
+    for i in range(10, 0, -3):
+        print(i, end=" ")
+    print()
+```
+
+<Result>
+10 7 4 1
+</Result>
+
+Есть и редкая питоновская конструкция `for ... else` — блок `else`
+выполняется, если цикл завершился без `break`. Работает она и с `while`.
+
+## Перебор коллекций
+
+`enumerate` и `zip` на месте:
+
+```mojo
+def main():
+    var cities: List[String] = ["Москва", "Казань"]
+    var population: List[Int] = [13, 1]
+
+    for index, city in enumerate(cities):
+        print(index, city)
+
+    for pair in zip(cities, population):
+        print(pair[0], "—", pair[1], "млн")
+```
+
+<Result>
+0 Москва
+1 Казань
+Москва — 13 млн
+Казань — 1 млн
+</Result>
+
+Обратите внимание на разницу: `enumerate` даёт распаковку в две переменные,
+а элементы `zip` приходят кортежем, к которому обращаются по индексу.
+
+Есть и `reversed` для обхода в обратном порядке.
+
+## Изменение элементов прямо в цикле
+
+А вот это отличается от Python по существу. В Python переменная цикла —
+копия ссылки на элемент, и присваивание ей ничего не меняет в списке.
+В Mojo можно получить **ссылку** на элемент через `ref`:
+
+<PyMojo>
+  <Fragment slot="python">
+```python
+for i in range(len(numbers)):
+    numbers[i] *= 10
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+for ref value in numbers:
+    value *= 10
+```
+  </Fragment>
+  <Fragment slot="note">
+    Вариант с индексами тоже работает, но `ref` читается лучше и не даёт
+    ошибиться с границами. Без `ref` переменная цикла — копия, и умножение
+    ничего не изменит в списке.
+  </Fragment>
+</PyMojo>
+
+## Перебор словаря
+
+Здесь Mojo честнее Python. Обращение по ключу может не найти значение,
+поэтому оно способно бросить исключение:
+
+<CompilerError msg="error: cannot call function that may raise in a context that cannot raise">
+  <Fragment slot="meaning">
+    Вы написали `codes[city]` внутри обычной функции. Обращение к словарю
+    по ключу — операция, которая может завершиться ошибкой, если ключа нет.
+  </Fragment>
+  <Fragment slot="fix">
+    Либо пометьте функцию как `raises`, либо перебирайте пары через
+    `.items()` — тогда ключ и значение приходят сразу, и обращаться
+    по ключу не нужно.
+  </Fragment>
+</CompilerError>
+
+```mojo
+def main():
+    var codes = Dict[String, Int]()
+    codes["Москва"] = 495
+    codes["Казань"] = 843
+
+    for item in codes.items():
+        print(item.key, item.value)
+```
+
+<Result>
+Москва 495
+Казань 843
+</Result>
+
+Отдельно доступны `.keys()` и `.values()`, а `for city in codes` перебирает
+ключи — как в Python.
+
+## Всё вместе
+
+<Code code={loops} lang="mojo" title="loops.mojo" />
+
+<Result>
+тепло
+одеваться: легко
+10 7 4 1
+0 Москва
+1 Казань
+2 Томск
+Москва — 13 млн
+Казань — 1 млн
+Томск — 0 млн
+после умножения: 10 20 30
+сумма нечётных до 7: 16
+шаг 0
+шаг 1
+цикл дошёл до конца
+Москва 495
+Казань 843
+</Result>
+
+## Полезные встроенные функции
+
+Проверено на Mojo 1.0: `len`, `abs`, `min`, `max`, `round`, `pow`, `sort`,
+`enumerate`, `zip`, `reversed`, `range` — на месте. Есть и `any` с `all`,
+но принимают они коллекцию, а не отдельное значение:
+
+```mojo
+def main():
+    var flags: List[Bool] = [True, False]
+    print(any(flags), all(flags))
+```
+
+<Result>
+True False
+</Result>
+
+А вот привычного `sum` в языке **нет**. Сумму списка считают циклом:
+
+```mojo
+def main():
+    var values: List[Int] = [3, 1, 2]
+    var total = 0
+    for value in values:
+        total += value
+    print(total)
+```
+
+<Result>
+6
+</Result>
+
+<Aside type="tip" title="Это не потеря">
+  Цикл здесь не медленнее и не хуже: компилятор превратит его в те же
+  инструкции, что и вызов `sum`. А когда дойдёт до больших массивов,
+  вместо цикла вы будете писать `reduce_add()` над SIMD-вектором —
+  и это уже быстрее любого питоновского `sum`.
 </Aside>
 
-## Что будет в этой главе
+<Quiz>
+  <QuizItem q="Как изменить элементы списка прямо в цикле?">
+    Через `for ref value in numbers:` — тогда переменная цикла становится
+    ссылкой на элемент, и `value *= 10` меняет сам список. Без `ref`
+    это копия, и изменения пропадут.
+  </QuizItem>
+  <QuizItem q="Почему `for city in codes: print(codes[city])` не компилируется?">
+    Обращение к словарю по ключу может бросить исключение, если ключа нет.
+    Значит, вызывающая функция должна быть помечена `raises` — либо нужно
+    перебирать `.items()`, где ключ и значение приходят вместе.
+  </QuizItem>
+  <QuizItem q="Чем заменить `match` из Python 3.10?">
+    Цепочкой `if` / `elif` / `else`: конструкции `match` в Mojo 1.0 нет.
+    Если разбор идёт по типам, а не по значениям, лучше подойдёт перегрузка
+    функций — она разрешается на этапе компиляции.
+  </QuizItem>
+</Quiz>
 
-- if / elif / else
-- Циклы for и while
-- break, continue, else у циклов
-- Отличия от Python
+## Что дальше
 
-## Хотите ускорить
-
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+[Обработка ошибок](/basics/errors/): `raises`, `try` / `except`
+и контекстные менеджеры.
