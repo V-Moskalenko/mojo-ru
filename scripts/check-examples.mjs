@@ -93,6 +93,15 @@ let checked = 0;
 for (const file of collect(EXAMPLES, '.mojo')) {
   const rel = relative(EXAMPLES, file);
   const expectedFile = file.replace(/\.mojo$/, '.out');
+
+  // Файлы без точки входа — это модули многофайлового примера. Запустить их
+  // отдельно нельзя (`module does not define a 'main' function`), но они
+  // проверяются вместе с той программой, которая их импортирует.
+  if (!/\bdef main\b/.test(readFileSync(file, 'utf-8'))) {
+    console.log(`· ${rel}: модуль, проверяется через импорт`);
+    continue;
+  }
+
   checked++;
 
   if (!existsSync(expectedFile)) {

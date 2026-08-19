@@ -1,31 +1,313 @@
 ---
 title: Модули и пакеты
-description: "Организация кода: импорты, модули, пакеты."
+description: "Как разложить код Mojo 1.0 по файлам и каталогам — импорты, __init__.mojo, предкомпиляция через mojo precompile и почему циклические импорты здесь не ломаются."
 sidebar:
   order: 10
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.0.0
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Code, FileTree } from '@astrojs/starlight/components';
+import app from '../../../../examples/basics/modules/app.mojo?raw';
+import geometry from '../../../../examples/basics/modules/geometry.mojo?raw';
+import circle from '../../../../examples/basics/modules/shapes/circle.mojo?raw';
+import rectangle from '../../../../examples/basics/modules/shapes/rectangle.mojo?raw';
+import packageInit from '../../../../examples/basics/modules/shapes/__init__.mojo?raw';
+import Result from '../../../components/Result.astro';
+import PyMojo from '../../../components/PyMojo.astro';
+import CompilerError from '../../../components/CompilerError.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+Пока все примеры курса помещались в один файл. Настоящая программа так
+не живёт — и хорошая новость в том, что раскладывать её по файлам в Mojo
+просто: в обычном случае ни настройки, ни возни с `sys.path` не требуется.
+
+Правило ровно одно: **файл — это модуль, каталог — это пакет**.
+
+## Импорт соседнего файла
+
+Пусть рядом с `app.mojo` лежит `geometry.mojo`. Тогда работают все привычные
+формы импорта:
+
+```mojo
+import geometry                       # весь модуль
+from geometry import PI, to_centimeters  # отдельные имена
+import geometry as geo                # с псевдонимом
+from geometry import *                # всё сразу
+```
+
+Обращение — как в Python: `geometry.PI` или просто `PI`, если имя
+импортировано напрямую.
+
+<Aside type="tip" title="Пути считаются от главного файла">
+  Модули ищутся рядом с тем файлом, который вы запускаете, а не в текущем
+  каталоге терминала. Поэтому `mojo /путь/к/проекту/app.mojo` работает
+  из любого места — переходить в каталог проекта не нужно.
 </Aside>
 
-## Что будет в этой главе
+Если модуль не нашёлся:
 
-- Импорт из стандартной библиотеки
-- Собственные модули
-- Пакеты и структура проекта
-- Компиляция пакетов
+<CompilerError msg="error: unable to locate module 'shapes'">
+  <Fragment slot="meaning">
+    Компилятор не видит модуль или пакет с таким именем ни рядом с главным
+    файлом, ни в путях поиска.
+  </Fragment>
+  <Fragment slot="fix">
+    Проверьте имя файла (оно и есть имя модуля) и его расположение. Если код
+    лежит в другом месте — добавьте путь флагом `-I`:
 
-## Хотите ускорить
+    ```bash
+    uv run mojo -I ../общая-библиотека app.mojo
+    ```
+  </Fragment>
+</CompilerError>
 
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+## Пакеты
+
+Каталог с файлами `.mojo` — это уже пакет:
+
+```mojo
+from shapes.circle import Circle
+```
+
+Никакого `__init__.mojo` для этого не требуется — в отличие от старых версий
+Python, каталог работает как пакет сам по себе.
+
+Тогда зачем `__init__.mojo` нужен? Чтобы собрать публичные имена в одном
+месте и спрятать внутреннее устройство пакета:
+
+<Code code={packageInit} lang="mojo" title="shapes/__init__.mojo" />
+
+После этого пользователь пишет коротко и не знает, в каком именно файле лежит
+`Circle`:
+
+```mojo
+from shapes import Circle, Rectangle
+```
+
+Захотите завтра разбить `circle.mojo` на три файла — код, который вас
+импортирует, не заметит.
+
+<Aside type="note" title="Точка означает «внутри этого пакета»">
+  Внутри `__init__.mojo` мы пишем `from .circle import Circle` — с точкой,
+  потому что `circle` лежит в том же пакете.
+
+  А вот модуль верхнего уровня из файла внутри пакета импортируется **без**
+  точки: в `shapes/circle.mojo` написано `from geometry import PI`, хотя
+  `geometry.mojo` лежит уровнем выше. Пути всегда отсчитываются от каталога
+  главного файла.
+</Aside>
+
+## Циклические импорты не ломаются
+
+Проверим то, чего питонист опасается инстинктивно. Два модуля, каждый
+импортирует другой:
+
+```mojo
+# c_mod.mojo
+from d_mod import dee
+
+
+def see() -> Int:
+    return dee() + 1
+```
+
+```mojo
+# d_mod.mojo
+from c_mod import see
+
+
+def dee() -> Int:
+    return 10
+
+
+def both() -> Int:
+    return see() + dee()
+```
+
+Это компилируется и работает: `both()` возвращает 21.
+
+<PyMojo>
+  <Fragment slot="python">
+```python
+# ImportError: cannot import name 'see'
+# from partially initialized module
+# (most likely due to a circular import)
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+# работает
+```
+  </Fragment>
+  <Fragment slot="note">
+    В Python импорт — это **выполнение** файла сверху вниз, поэтому кольцо
+    приводит к обращению к недособранному модулю. В Mojo импорт — разрешение
+    имён на этапе компиляции: компилятор видит оба файла целиком и просто
+    связывает символы.
+  </Fragment>
+</PyMojo>
+
+Опираться на это не стоит — кольцевые зависимости всё равно усложняют чтение
+кода, — но чинить их срочными костылями, как в Python, здесь не придётся.
+
+## Приватности нет
+
+Подчёркивание в начале имени — только соглашение:
+
+```mojo
+from geometry import _helper   # компилируется
+```
+
+Компилятор не мешает импортировать «внутреннее» имя. Обозначайте намерение
+подчёркиванием, но не рассчитывайте, что язык вас защитит.
+
+## Точка входа
+
+Запустить можно только файл с функцией `main`:
+
+<CompilerError msg="error: module does not define a `main` function">
+  <Fragment slot="meaning">
+    Вы попытались запустить модуль-библиотеку: в нём есть функции
+    и структуры, но нет точки входа.
+  </Fragment>
+  <Fragment slot="fix">
+    Запускайте файл приложения, а модуль подключайте импортом. Обратное
+    ограничение не действует: модуль с собственной `main` импортировать
+    можно, его `main` просто не вызовется.
+  </Fragment>
+</CompilerError>
+
+## Предкомпиляция
+
+Когда библиотека готова, её можно собрать в один файл — чтобы не таскать
+за собой дерево исходников и не пересобирать пакет при каждом запуске:
+
+```bash
+uv run mojo precompile shapes -o shapes.mojoc
+uv run mojo app.mojo
+```
+
+Импорт при этом не меняется ни на строчку: `from shapes import Circle`
+работает одинаково и с каталогом исходников, и с файлом `.mojoc`. Флаг `-I`
+нужен, только если `.mojoc` лежит не рядом с главным файлом.
+
+<Aside type="caution" title="Для `precompile` `__init__.mojo` обязателен">
+  Каталог без него прекрасно работает как пакет при обычном импорте,
+  но предкомпилировать себя не даст:
+
+  ```text
+  mojo: error: 'shapes' does not correspond to a Mojo package
+  ```
+
+  Собираетесь предкомпилировать — заведите `__init__.mojo`, даже пустой.
+</Aside>
+
+<Aside type="note" title="Это не способ распространения">
+  `.mojoc` привязан к версии компилятора: другой версией он уже
+  не загрузится. И исходный текст он не прячет — имена, строковые литералы
+  и докстринги остаются внутри в открытом виде. Считайте его кешем сборки,
+  а не защищённым дистрибутивом.
+</Aside>
+
+<Aside type="caution" title="`mojo package` и `.mojopkg` устарели">
+  Почти во всех статьях и в старых учебниках вы увидите команду
+  `mojo package` и расширение `.mojopkg`. В 1.0 они ещё работают,
+  но компилятор ругается:
+
+  ```text
+  warning: 'package' is deprecated; use 'precompile' instead
+  warning: creating '.mojopkg' file extensions is deprecated; switch to '.mojoc'
+  ```
+
+  В новом коде — `mojo precompile` и `.mojoc`.
+</Aside>
+
+## Команды `mojo`, которые пригодятся
+
+| Команда | Что делает |
+| --- | --- |
+| `mojo app.mojo` | собирает и сразу запускает (то же, что `mojo run`) |
+| `mojo build app.mojo` | собирает исполняемый файл |
+| `mojo precompile пакет -o имя.mojoc` | предкомпилирует пакет |
+| `mojo format файл.mojo` | форматирует код |
+| `mojo doc файл.mojo` | извлекает документацию в JSON |
+| `mojo repl` | интерактивная сессия |
+| `mojo debug` | запуск под отладчиком |
+
+Собранный через `mojo build` файл запускается из любого каталога —
+модули в него уже вкомпилированы, исходники рядом не нужны. Полностью
+автономным он при этом не становится: рантайм Mojo подключается
+динамически, поэтому на чужой машине всё равно понадобится установленная
+среда Mojo.
+
+## Всё вместе
+
+Маленький проект из пяти файлов:
+
+<FileTree>
+
+- app.mojo
+- geometry.mojo
+- shapes/
+  - \_\_init\_\_.mojo
+  - circle.mojo
+  - rectangle.mojo
+
+</FileTree>
+
+<Code code={geometry} lang="mojo" title="geometry.mojo" />
+
+<Code code={circle} lang="mojo" title="shapes/circle.mojo" />
+
+<Code code={rectangle} lang="mojo" title="shapes/rectangle.mojo" />
+
+<Code code={packageInit} lang="mojo" title="shapes/__init__.mojo" />
+
+<Code code={app} lang="mojo" title="app.mojo" />
+
+<Result>
+круг r=2.0 площадь 12.56636
+прямоугольник 3.0x4.0 площадь 12.0
+PI из модуля: 3.14159
+два метра в сантиметрах: 200.0
+</Result>
+
+Запускается это одной командой, без сборочных файлов и настройки путей:
+
+```bash
+uv run mojo app.mojo
+```
+
+<Quiz>
+  <QuizItem q="Нужен ли `__init__.mojo`, чтобы каталог стал пакетом?">
+    Нет, каталог работает как пакет и без него. `__init__.mojo` нужен
+    для другого: собрать публичные имена, чтобы пользователь писал
+    `from shapes import Circle`, не зная внутреннего устройства пакета.
+  </QuizItem>
+  <QuizItem q="Почему циклический импорт в Mojo не приводит к ошибке?">
+    Потому что импорт здесь — разрешение имён на этапе компиляции,
+    а не выполнение файла сверху вниз, как в Python. Компилятор видит оба
+    модуля целиком и связывает символы. Злоупотреблять этим всё равно
+    не стоит.
+  </QuizItem>
+  <QuizItem q="Чем заменить устаревшую команду `mojo package`?">
+    Командой `mojo precompile`, а расширение `.mojopkg` — на `.mojoc`.
+    Старый вариант ещё работает, но выдаёт предупреждение об устаревании.
+  </QuizItem>
+  <QuizItem q="Где Mojo ищет модуль, который вы импортируете?">
+    Рядом с запускаемым файлом, а не в текущем каталоге терминала.
+    Дополнительные пути добавляются флагом `-I`.
+  </QuizItem>
+</Quiz>
+
+## Раздел пройден
+
+На этом «Базовый Mojo» закончен: вы умеете объявлять переменные и типы,
+писать функции, обрабатывать ошибки, создавать собственные структуры
+и раскладывать код по файлам. Этого достаточно, чтобы писать программы.
+
+Дальше — то, ради чего язык и создавался.
+[Владение значениями](/ownership/intro/) объясняет, почему `var b = a`
+требует разрешения, что означают `mut`, `ref` и `out` и как Mojo обходится
+без сборщика мусора, не заставляя вас, как C, следить за памятью вручную.
