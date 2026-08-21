@@ -1,0 +1,21 @@
+{
+  "name": "Mojo по-русски — курс по языку Mojo 1.0",
+  "short_name": "Mojo по-русски",
+  "description": "Бесплатный курс по языку программирования Mojo 1.0 на русском языке: установка, синтаксис, владение значениями, SIMD и практика.",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#14110f",
+  "theme_color": "#14110f",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

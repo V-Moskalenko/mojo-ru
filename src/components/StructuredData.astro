@@ -1,0 +1,159 @@
+---
+/**
+ * Разметка Schema.org (JSON-LD) — чтобы поисковик понимал, что перед ним.
+ *
+ * Без неё Google видит просто набор страниц. С ней он знает, что сайт —
+ * бесплатный учебный курс по конкретному языку, что у страницы есть автор
+ * и дата обновления, и в каком месте оглавления она находится. Это влияет
+ * и на то, как выглядит сниппет в выдаче, и на то, попадёт ли курс
+ * в тематические подборки.
+ *
+ * Страницы-подмены (английский адрес с русским текстом) размечать не нужно:
+ * они и так закрыты от индексации.
+ */
+import { getCollection } from 'astro:content';
+
+const route = Astro.locals.starlightRoute;
+const site = Astro.site?.href ?? 'https://mojo-lang.ru/';
+const url = Astro.url.href;
+
+const ORG = `${site}#org`;
+const COURSE = `${site}#course`;
+
+const isHome = route?.id === 'index' || Astro.url.pathname === (Astro.site?.pathname ?? '/');
+
+/** Названия разделов — те же, что в боковом меню. */
+const SECTIONS = {
+  start: 'Начало',
+  install: 'Установка и окружение',
+  'python-to-mojo': 'Из Python в Mojo',
+  basics: 'Базовый Mojo',
+  ownership: 'Владение значениями',
+  meta: 'Метапрограммирование',
+  performance: 'Производительность',
+  interop: 'Интеграция',
+  projects: 'Практика',
+  reference: 'Справочник',
+};
+
+const organization = {
+  '@type': 'Organization',
+  '@id': ORG,
+  name: 'Mojo по-русски',
+  url: site,
+  logo: `${site}icon-512.png`,
+  sameAs: ['https://github.com/V-Moskalenko/mojo-ru'],
+};
+
+const course = {
+  '@type': 'Course',
+  '@id': COURSE,
+  name: 'Mojo по-русски',
+  url: site,
+  description:
+    'Бесплатный курс по языку программирования Mojo 1.0 на русском языке: установка на Windows через WSL, настройка VS Code, синтаксис, владение значениями, SIMD и практические проекты.',
+  inLanguage: 'ru',
+  isAccessibleForFree: true,
+  educationalLevel: 'beginner',
+  provider: { '@id': ORG },
+  // Курс бесплатный — так и говорим, без выдуманной длительности:
+  // «продолжительность» Google просит для карусели курсов, но честно
+  // указать её можно будет только когда курс будет дописан.
+  offers: {
+    '@type': 'Offer',
+    category: 'Free',
+    price: 0,
+    priceCurrency: 'RUB',
+    availability: 'https://schema.org/InStock',
+  },
+  about: {
+    '@type': 'Thing',
+    name: 'Mojo',
+    description: 'Язык программирования Mojo от Modular',
+  },
+  teaches: [
+    'Установка Mojo на Windows через WSL',
+    'Синтаксис Mojo 1.0',
+    'Владение значениями и модель памяти',
+    'Векторные вычисления SIMD',
+    'Совместимость с Python',
+  ],
+};
+
+const docs = await getCollection('docs');
+
+/**
+ * Первая глава раздела.
+ *
+ * Отдельных страниц-разделов у сайта нет: адрес вида /ownership/ отдаёт 404.
+ * Поэтому ступенька «раздел» в крошках ведёт на первую его главу — ту же,
+ * что открывается по клику в боковом меню. Порядок берётся из frontmatter,
+ * так что список сам подстроится, когда главы поменяются местами.
+ */
+function sectionEntry(section) {
+  const inside = docs
+    .filter((doc) => doc.id.startsWith(`${section}/`))
+    .sort((a, b) => (a.data.sidebar?.order ?? 999) - (b.data.sidebar?.order ?? 999));
+  return inside[0]?.id;
+}
+
+/** Хлебные крошки: главная → раздел → глава. */
+function breadcrumbs() {
+  const parts = (route?.id ?? '').split('/').filter(Boolean);
+  const items = [{ '@type': 'ListItem', position: 1, name: 'Главная', item: site }];
+
+  const entry = parts.length > 1 && parts[0] in SECTIONS ? sectionEntry(parts[0]) : undefined;
+  // Если открыта сама первая глава раздела, ступенька «раздел» вела бы
+  // на эту же страницу — тогда её пропускаем.
+  if (entry && entry !== route?.id) {
+    items.push({
+      '@type': 'ListItem',
+      position: 2,
+      name: SECTIONS[parts[0]],
+      item: `${site}${entry}/`,
+    });
+  }
+
+  items.push({
+    '@type': 'ListItem',
+    position: items.length + 1,
+    name: route?.entry?.data?.title ?? '',
+    item: url,
+  });
+
+  return { '@type': 'BreadcrumbList', itemListElement: items };
+}
+
+const article = {
+  '@type': 'TechArticle',
+  '@id': `${url}#article`,
+  headline: route?.entry?.data?.title,
+  description: route?.entry?.data?.description,
+  inLanguage: 'ru',
+  isAccessibleForFree: true,
+  mainEntityOfPage: url,
+  author: { '@id': ORG },
+  publisher: { '@id': ORG },
+  isPartOf: { '@id': COURSE },
+  ...(route?.lastUpdated instanceof Date ? { dateModified: route.lastUpdated.toISOString() } : {}),
+};
+
+const graph = isHome
+  ? [
+      organization,
+      course,
+      {
+        '@type': 'WebSite',
+        '@id': `${site}#website`,
+        url: site,
+        name: 'Mojo по-русски',
+        inLanguage: 'ru',
+        publisher: { '@id': ORG },
+      },
+    ]
+  : [organization, article, breadcrumbs()];
+
+const data = { '@context': 'https://schema.org', '@graph': graph };
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(data)} is:inline />

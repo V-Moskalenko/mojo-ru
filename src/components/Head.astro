@@ -1,17 +1,55 @@
 ---
 import Default from '@astrojs/starlight/components/Head.astro';
+import StructuredData from './StructuredData.astro';
+import { VERIFICATION } from '../seo.ts';
 
 /**
  * Дополнение к стандартному <head> Starlight.
  *
- * Пока английских переводов почти нет, Starlight подставляет вместо них
- * русский оригинал (fallback). Читателю это удобно, а поисковику — нет:
+ * Здесь три вещи, которых Starlight не делает сам:
+ *
+ * 1. Иконки во всех форматах, которые спрашивают браузеры и телефоны.
+ * 2. Разметка Schema.org — см. StructuredData.astro.
+ * 3. Подтверждение прав на сайт для Google и Яндекса, если нужен
+ *    мета-тег (при подтверждении через DNS он не требуется).
+ *
+ * Плюс старое: пока английских переводов почти нет, Starlight подставляет
+ * вместо них русский оригинал. Читателю это удобно, а поисковику — нет:
  * получается полсотни английских адресов с русским текстом, то есть
  * дублирующийся контент. Такие страницы закрываем от индексации;
  * ссылки на них при этом остаются рабочими.
  */
 const isFallback = Astro.locals.starlightRoute?.isFallback === true;
+
+/**
+ * Глава-заглушка. Читателю она нужна — видно план курса. Поисковику нет:
+ * три десятка почти одинаковых страниц «глава пишется» выглядят как тонкий
+ * контент и портят оценку всего сайта. Индексацию закрываем, обход ссылок
+ * оставляем.
+ */
+const isDraft = Astro.locals.starlightRoute?.entry?.data?.wip === true;
+const site = Astro.site?.href ?? 'https://mojo-lang.ru/';
 ---
 
 <Default><slot /></Default>
-{isFallback && <meta name="robots" content="noindex, follow" />}
+
+{(isFallback || isDraft) && <meta name="robots" content="noindex, follow" />}
+
+{
+  /* Векторную иконку Starlight ставит сам, здесь — остальные форматы:
+    ICO для старых браузеров и выдачи, PNG для телефонов. */
+}
+<link rel="icon" href="/favicon.ico" sizes="48x48" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+
+{/* Превью для соцсетей: размеры помогают отрисовать карточку сразу. */}
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Mojo по-русски — курс по языку Mojo 1.0" />
+<meta name="twitter:image" content={`${site}og.png`} />
+
+{VERIFICATION.google && <meta name="google-site-verification" content={VERIFICATION.google} />}
+{VERIFICATION.yandex && <meta name="yandex-verification" content={VERIFICATION.yandex} />}
+
+{!isFallback && !isDraft && <StructuredData />}

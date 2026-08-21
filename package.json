@@ -11,7 +11,8 @@
     "examples:check": "node scripts/check-examples.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "og": "node scripts/make-og.mjs"
+    "og": "node scripts/make-og.mjs",
+    "icons": "node scripts/make-icons.mjs"
   },
   "license": "CC-BY-4.0",
   "dependencies": {

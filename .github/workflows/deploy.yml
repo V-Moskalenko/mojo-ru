@@ -25,7 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
+        with:
+          # полная история нужна для дат «обновлено» на страницах и lastmod в карте сайта
+          fetch-depth: 0
+          
       - uses: actions/setup-node@v7
         with:
           node-version: 22

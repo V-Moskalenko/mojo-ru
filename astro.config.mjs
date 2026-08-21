@@ -4,6 +4,8 @@ import starlight from '@astrojs/starlight';
 import starlightLinksValidator from 'starlight-links-validator';
 import sitemap from '@astrojs/sitemap';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { rehypeBaseLinks } from './src/plugins/rehype-base-links.mjs';
 
 /**
@@ -52,6 +54,68 @@ function translatedEnglishRoutes() {
 const EN_ROUTES = translatedEnglishRoutes();
 
 /**
+ * Адреса глав-заглушек (`wip: true` во frontmatter).
+ *
+ * Заглушка полезна читателю: видно, куда движется курс, и можно попросить
+ * написать главу раньше. Но для поисковика три десятка почти одинаковых
+ * страниц «глава пишется» — это тонкий контент, который тянет вниз оценку
+ * всего сайта. Поэтому такие страницы не попадают в карту сайта и получают
+ * noindex; ссылки на них и навигация при этом работают как обычно.
+ */
+function draftRoutes() {
+  const dir = new URL('./src/content/docs/', import.meta.url).pathname.replace(/\/$/, '');
+  const routes = new Set();
+
+  const walk = (current, prefix) => {
+    for (const name of readdirSync(current)) {
+      const full = `${current}/${name}`;
+      if (statSync(full).isDirectory()) {
+        walk(full, `${prefix}${name}/`);
+        continue;
+      }
+      if (!/\.mdx?$/.test(name)) continue;
+      const frontmatter = readFileSync(full, 'utf-8').split(/^---$/m)[1] ?? '';
+      if (!/^wip:\s*true\s*$/m.test(frontmatter)) continue;
+      const slug = name.replace(/\.mdx?$/, '');
+      routes.add(slug === 'index' ? `/${prefix}` : `/${prefix}${slug}/`);
+    }
+  };
+
+  walk(dir, '');
+  return routes;
+}
+
+const DRAFT_ROUTES = draftRoutes();
+
+/**
+ * Дата последнего изменения страницы — берётся из истории git.
+ *
+ * Поисковику она говорит, что перечитывать в первую очередь. Врать здесь
+ * нельзя: если поставить «сегодня» всем страницам разом, Google просто
+ * перестанет верить полю. Поэтому дата настоящая — коммит, в котором главу
+ * правили последний раз.
+ *
+ * На мелкой копии репозитория (`fetch-depth: 1`) истории нет, дата не
+ * определится — тогда поле просто не выводится, сборка не падает.
+ */
+function lastModified(route) {
+  const clean = route.replace(/^\/en/, '').replace(/^\/|\/$/g, '');
+  const base = `./src/content/docs/${clean || 'index'}`;
+  const file = ['.mdx', '.md'].map((ext) => `${base}${ext}`).find((path) => existsSync(path));
+  if (!file) return undefined;
+
+  try {
+    const date = execFileSync('git', ['log', '-1', '--format=%cI', '--', file], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return date || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * TextMate-грамматика Mojo взята из официального расширения VS Code
  * https://github.com/modular/vscode-mojo (Apache-2.0).
  * Shiki не содержит Mojo среди встроенных языков, поэтому регистрируем вручную.
@@ -74,6 +138,34 @@ export default defineConfig({
   },
   integrations: [
     /**
+     * robots.txt собирается на сборке, а не лежит в public/, чтобы адрес
+     * карты сайта не разъехался с доменом: и то и другое берётся из SITE.
+     */
+    {
+      name: 'robots-txt',
+      hooks: {
+        'astro:build:done': async ({ dir, logger }) => {
+          const base = BASE === '/' ? '' : BASE;
+          const body = [
+            '# Курс «Mojo по-русски»',
+            '# Индексировать можно всё: сайт публичный и бесплатный.',
+            '#',
+            '# Английские адреса без перевода закрыты мета-тегом noindex',
+            '# в самой странице. Через robots.txt их закрывать нельзя:',
+            '# запрет обхода помешал бы роботу увидеть noindex.',
+            '',
+            'User-agent: *',
+            'Allow: /',
+            '',
+            `Sitemap: ${new URL(`${base}/sitemap-index.xml`, SITE).href}`,
+            '',
+          ].join('\n');
+          await writeFile(new URL('robots.txt', dir), body, 'utf-8');
+          logger.info('robots.txt создан');
+        },
+      },
+    },
+    /**
      * Свой @astrojs/sitemap вместо встроенного: нужен фильтр, который
      * выкидывает непереведённые английские адреса.
      */
@@ -84,8 +176,15 @@ export default defineConfig({
       },
       filter: (page) => {
         const path = new URL(page).pathname.replace(BASE === '/' ? '' : BASE, '') || '/';
+        // главы-заглушки в карту сайта не попадают
+        if (DRAFT_ROUTES.has(path.replace(/^\/en/, ''))) return false;
         if (!path.startsWith('/en/') && path !== '/en') return true;
         return EN_ROUTES.has(path);
+      },
+      serialize: (item) => {
+        const path = new URL(item.url).pathname.replace(BASE === '/' ? '' : BASE, '') || '/';
+        const lastmod = lastModified(path);
+        return lastmod ? { ...item, lastmod } : item;
       },
     }),
     starlight({
