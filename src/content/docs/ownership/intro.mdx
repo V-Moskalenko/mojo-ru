@@ -89,7 +89,9 @@ import QuizItem from '../../../components/QuizItem.astro';
 ## Уничтожение сразу после последнего использования
 
 Вот здесь начинается самое интересное — и то, чего нет ни в Python,
-ни в C++ (в Rust устроено похоже).
+ни в C++, ни даже в Rust: там значение живёт до конца области видимости.
+Мы это проверили и показываем в главе
+[Сравнение с Rust и C++](/ownership/vs-rust/).
 
 <Code code={lifetime} lang="mojo" title="lifetime.mojo" />
 
