@@ -86,7 +86,10 @@ def main():
 | `@parameter if` / `@parameter for` | `comptime if` / `comptime for` | новый и более читаемый синтаксис |
 | `constrained[cond, msg]()` | `comptime assert` | |
 | `x[-1]` (отрицательный индекс) | `x[len(x) - 1]` | отрицательная индексация удалена — она мешала оптимизациям |
-| `Stringable`, `Representable` | `Writable` | трейты объединены |
+| `Stringable`, `Representable` | `Writable` | трейты объединены: `write_to` даёт и `print(x)`, и `String(x)` |
+| `EqualityComparable` | `Equatable` | переименован |
+| `GreaterThanComparable` | `Comparable` | поглощён: хватает одного `__lt__` |
+| `CollectionElement` | `Movable` | `List` больше не требует копируемости |
 | `mojo package`, файлы `.mojopkg` | `mojo precompile`, файлы `.mojoc` | переименована команда и расширение |
 
 ### Установка и инструменты
