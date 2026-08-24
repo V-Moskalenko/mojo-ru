@@ -41,6 +41,8 @@ jobs:
           uv init --bare ci-env
           cd ci-env
           uv add mojo
+          # max нужен ради parallelize: в стандартной библиотеке 1.0 его нет
+          uv add max
           echo "MOJO_CMD=$PWD/.venv/bin/mojo" >> "$GITHUB_ENV"
 
       - name: Показать версию Mojo
