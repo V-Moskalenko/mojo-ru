@@ -130,7 +130,17 @@ for (const file of collect(EXAMPLES, '.mojo')) {
   console.log(`✓ ${rel}`);
 }
 
-// --- 2. Полные примеры из текста глав: должны хотя бы компилироваться ------
+// --- 2. Полные примеры из текста глав ------------------------------------
+//
+// Блок компилируется и запускается. Если сразу за ним стоит
+// `<Result output={"..."} />`, вывод ещё и сверяется с этой строкой —
+// иначе обещанный результат держался бы только на честном слове автора.
+//
+// Сверку можно отключить для блока, чей вывод меняется от запуска
+// к запуску (замеры времени): поставьте перед `<Result>` строку-комментарий
+// `{/* вывод-меняется */}`.
+
+const UNSTABLE = '{/* вывод-меняется */}';
 
 for (const file of collect(DOCS, '.mdx')) {
   const rel = relative(DOCS, file);
@@ -138,14 +148,14 @@ for (const file of collect(DOCS, '.mdx')) {
 
   const source = readFileSync(file, 'utf-8');
   const blocks = [...source.matchAll(/```mojo[^\n]*\n([\s\S]*?)```/g)]
-    .map((match) => match[1])
+    .map((match) => ({ code: match[1], after: source.slice(match.index + match[0].length) }))
     // фрагменты без точки входа компилировать нельзя — это куски кода,
     // а не программы
-    .filter((code) => /\bdef main\b/.test(code));
+    .filter((block) => /\bdef main\b/.test(block.code));
 
-  for (const [index, code] of blocks.entries()) {
+  for (const [index, block] of blocks.entries()) {
     const tmp = join(tmpdir(), `mojo-ru-${process.pid}-${checked}.mojo`);
-    writeFileSync(tmp, code, 'utf-8');
+    writeFileSync(tmp, block.code, 'utf-8');
     checked++;
 
     const result = runMojo(tmp);
@@ -155,6 +165,25 @@ for (const file of collect(DOCS, '.mdx')) {
       console.error(`✗ ${rel} (блок кода #${index + 1}): не компилируется`);
       console.error(result.stderr.trim());
       failed++;
+      continue;
+    }
+
+    // Ищем <Result output={"..."} /> в ближайших строках после блока.
+    const tail = block.after.slice(0, 400);
+    const promised = tail.match(
+      /^\s*(?:\{\/\*[^]*?\*\/\}\s*)?<Result output=\{"((?:[^"\\]|\\.)*)"\}\s*\/>/
+    );
+
+    if (promised && !tail.slice(0, promised[0].length).includes(UNSTABLE)) {
+      const expected = JSON.parse(`"${promised[1]}"`);
+      if (norm(result.stdout) !== norm(expected)) {
+        console.error(`✗ ${rel} (блок кода #${index + 1}): вывод не совпадает с <Result>`);
+        console.error('  обещано: ', JSON.stringify(norm(expected)));
+        console.error('  получено:', JSON.stringify(norm(result.stdout)));
+        failed++;
+        continue;
+      }
+      console.log(`✓ ${rel} (блок кода #${index + 1}) + вывод`);
       continue;
     }
 
