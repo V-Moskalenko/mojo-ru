@@ -1,31 +1,358 @@
 ---
 title: Указатели и память
-description: Pointer, OwnedPointer, ArcPointer и UnsafePointer.
+description: "Pointer, OwnedPointer и ArcPointer в Mojo 1.0, ручное выделение памяти через alloc и Layout, и почему рекурсивные структуры пока не собираются."
 sidebar:
   order: 4
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.0.0
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Code } from '@astrojs/starlight/components';
+import owners from '../../../../examples/performance/pointers/owners.mojo?raw';
+import Result from '../../../components/Result.astro';
+import CompilerError from '../../../components/CompilerError.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+В Python указателей нет — есть ссылки, и управляет ими сборщик мусора.
+В Mojo сборщика нет, а память кто-то должен освобождать. Обычно это
+делают `List`, `String` и `Dict`, и трогать указатели напрямую
+не приходится. Но иногда приходится.
+
+## Три указателя и один вопрос
+
+Выбор между ними сводится к одному вопросу: **сколько у значения
+владельцев**.
+
+| Тип | Владельцев | Когда брать |
+| --- | --- | --- |
+| `Pointer` | ноль, это просто вид на чужое | сослаться на существующее значение |
+| `OwnedPointer` | ровно один | значение в куче с единственным хозяином |
+| `ArcPointer` | сколько угодно | одно значение читают из нескольких мест |
+
+### `Pointer` — вид на чужое
+
+Ничем не владеет и ничего не освобождает: просто указывает на значение,
+которое живёт где-то ещё.
+
+```mojo
+from std.memory import Pointer
+
+
+def main():
+    var counter = 10
+    var view = Pointer(to=counter)
+    counter += 5
+    print(view[])
+```
+
+<Result output={"15"} />
+
+Обратите внимание: `view` показывает **текущее** значение, а не копию
+на момент создания. Компилятор при этом следит, чтобы указатель
+не пережил то, на что смотрит, — это те самые origins из главы
+[Времена жизни](/ownership/lifetimes/).
+
+### `OwnedPointer` — единственный хозяин
+
+Кладёт значение в кучу и владеет им единолично. Скопировать нельзя:
+
+<CompilerError msg="error: value of type 'OwnedPointer[Buffer]' cannot be implicitly copied, it does not conform to 'ImplicitlyCopyable'">
+  <Fragment slot="meaning">
+    Копия означала бы второго владельца, а весь смысл типа —
+    что владелец один. Освободили бы дважды.
+  </Fragment>
+  <Fragment slot="fix">
+    Передайте владение через `^` — или возьмите `ArcPointer`, если
+    владельцев действительно нужно несколько.
+  </Fragment>
+</CompilerError>
+
+Это прямой аналог `Box` из Rust и `unique_ptr` из C++.
+
+### `ArcPointer` — общее владение
+
+Хранит счётчик ссылок: значение живёт, пока на него смотрит хоть кто-то.
+
+```mojo
+from std.memory import ArcPointer
+
+
+@fieldwise_init
+struct Config(Movable, Deinitable):
+    var retries: Int
+
+
+def main():
+    var config = ArcPointer(Config(3))
+    print("ссылок:", config.count())
+    var shared = config
+    print("после копии:", config.count())
+    print("значение:", shared[].retries)
+```
+
+<Result output={"ссылок: 1\nпосле копии: 2\nзначение: 3"} />
+
+Счётчик — это цена. Каждое копирование и каждое уничтожение меняют его,
+а для многопоточности это атомарная операция. Берите `ArcPointer`,
+только когда владельцев действительно несколько.
+
+## Владеющая рекурсия не собирается
+
+Классический способ построить список или дерево — поле, указывающее
+на такую же структуру. В Mojo 1.0 это получается, но **не с любым
+указателем**. Владеющие не годятся.
+
+С `OwnedPointer` ошибка приходит сразу, при разборе:
+
+<CompilerError msg="error: field 'next' has non-'Deinitable' type 'OwnedPointer[Node]'">
+  <Fragment slot="meaning">
+    Чтобы уничтожить `Node`, нужно уметь уничтожать `OwnedPointer[Node]`,
+    для чего нужно уметь уничтожать `Node`. Круг не размыкается.
+  </Fragment>
+  <Fragment slot="fix">
+    Сделать поле невладеющим — обычный `Pointer`, см. ниже.
+  </Fragment>
+</CompilerError>
+
+С `ArcPointer` любопытнее. Само поле собирается прекрасно:
+
+```mojo
+struct Node(Movable, Deinitable):
+    var value: Int
+    var next: ArcPointer[Node]      # это компилируется
+```
+
+Проверено: `size_of[Node]()` даёт 16, `List[Node]` создаётся
+и уничтожается. Беда приходит, когда список нужно чем-то **закончить**.
+Нулевого указателя в Mojo нет — «ничего» выражают через `Optional`,
+и вот на нём раскладка ломается:
+
+```text
+error: struct has recursive reference to itself
+```
+
+Так что владеющей рекурсии не выходит: без `Optional` список бесконечен,
+с `Optional` не компилируется.
+
+### А невладеющая — выходит
+
+Если поле только **смотрит** на другой узел, а память живёт отдельно,
+всё работает. Узлы кладём в один блок, ссылки делаем обычными
+`Pointer`:
+
+```mojo
+comptime Link = Optional[Pointer[Node, MutUntrackedOrigin]]
+
+
+struct Node(Movable, Deinitable):
+    var value: Int
+    var next: Link
+
+    def __init__(out self, value: Int, var next: Link):
+        self.value = value
+        self.next = next^
+```
+
+`MutUntrackedOrigin` — встроенное имя, означающее «изменяемая память,
+за временем жизни которой компилятор не следит». Именно такой origin
+получает вручную выделенный блок, и именно поэтому круг размыкается:
+`Pointer` ничем не владеет, уничтожать через него нечего.
+
+<Aside type="caution" title="За это платят проверками">
+  Обычный `Pointer` компилятор стережёт: увести значение из-под него
+  он не даст. `MutUntrackedOrigin` эту защиту снимает — «untracked»
+  в имени сказано прямо. Ошибиться с временем жизни здесь можно так же
+  свободно, как в C.
+
+  Поэтому для списка или дерева честнее сравнить два пути и выбрать
+  осознанно.
 </Aside>
 
-## Что будет в этой главе
+### Проще: индексы вместо указателей
 
-- Типы указателей в Mojo 1.0
-- Безопасные и небезопасные операции
-- Выделение памяти
-- Правила безопасности
+Если сложность рекурсии не нужна, узлы складывают в `List`, а вместо
+ссылки хранят номер элемента:
 
-## Хотите ускорить
+```mojo
+@fieldwise_init
+struct Item(Copyable, Movable):
+    var value: Int
+    var next: Int  # -1 — конец списка
 
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+
+def main():
+    var items = List[Item]()
+    items.append(Item(1, 1))
+    items.append(Item(2, -1))
+
+    var i = 0
+    while i >= 0:
+        print(items[i].value)
+        i = items[i].next
+```
+
+<Result output={"1\n2"} />
+
+<Aside type="tip" title="Индексы вместо указателей — не костыль">
+  Приём известен и в языках, где рекурсивные структуры разрешены: узлы
+  лежат в одном массиве подряд, значит, попадают в кеш процессора;
+  индекс занимает четыре байта вместо восьми; освобождать нужно один
+  массив, а не тысячу узлов. И проверки компилятора остаются при вас.
+
+  Указатели в узлах берите, когда без них правда не обойтись.
+</Aside>
+
+## Ручное выделение памяти
+
+Если нужен сырой блок, его выделяют через `alloc` с описанием раскладки:
+
+```mojo
+from std.memory import Layout, dealloc
+
+
+def main():
+    var block = alloc(Layout[Int](count=3))
+    var raw = block.unsafe_ptr()
+    for i in range(3):
+        raw.unsafe_store(i, i * 100)
+    print(raw.unsafe_load(0), raw.unsafe_load(2))
+    dealloc(block^)
+```
+
+<Result output={"0 200"} />
+
+Забыть освобождение не выйдет — компилятор не даст:
+
+<CompilerError msg="error: 'block' abandoned without being explicitly destroyed">
+  <Fragment slot="meaning">
+    Блок памяти — это владеющее значение, и просто выйти из области
+    видимости оно не может. Компилятор называет и причину, и оба выхода:
+
+    ```text
+    An `Allocation` owns heap storage and must be consumed before it goes out of scope.
+    Deallocate it with `dealloc(allocation^)`, or call `unsafe_leak()` to take ownership
+    of the underlying pointer.
+    ```
+  </Fragment>
+  <Fragment slot="fix">
+    `dealloc(block^)` — освободить. Либо `unsafe_leak()`, если
+    ответственность за память вы забираете себе.
+  </Fragment>
+</CompilerError>
+
+Это заметно лучше, чем в C: утечка там — молчаливая ошибка времени
+выполнения, здесь — ошибка сборки.
+
+<Aside type="caution" title="`unsafe_store` — только для чисел">
+  Пара `unsafe_store` / `unsafe_load` работает со скалярами. Попытка
+  положить в блок свою структуру не пройдёт:
+
+  ```text
+  error: no matching method in call to 'unsafe_store'
+  ```
+
+  Для нескалярных типов нужен `unsafe_write`, а до нужного элемента
+  добираются через `unsafe_offset`:
+
+  ```mojo
+  var block = alloc(Layout[Node](count=3))
+  var base = block.unsafe_ptr()
+  base.unsafe_write(Node(1))
+  base.unsafe_offset(1).unsafe_write(Node(2))
+  ```
+</Aside>
+
+<Aside type="caution" title="Два подвоха в этом углу языка">
+  **`UnsafePointer` устарел.** Компилятор просит заменить его
+  на `Pointer`:
+
+  ```text
+  warning: 'UnsafePointer' is deprecated, use 'Pointer' instead
+  ```
+
+  **Совет компилятора про `alloc` требует уточнения.** Старая форма
+  `alloc[Int](4)` ещё работает, но предупреждает:
+
+  ```text
+  warning: `alloc` without a `Layout` is deprecated, use the `Layout`-based
+  `alloc` instead; as a temporary migration step, use `unsafe_alloc`
+  ```
+
+  Названный `unsafe_alloc` существует, но импортировать его нужно
+  из **модуля**, а не из пакета — иначе не найдётся:
+
+  ```mojo
+  from std.memory.alloc import unsafe_alloc     # так
+  from std.memory import unsafe_alloc           # package 'memory' does not contain
+  ```
+
+  Он возвращает голый `Pointer`, без обёртки `Allocation` — а значит,
+  и без проверки «не забыли ли освободить». Для нового кода лучше
+  `alloc(Layout[T](count=n))`: там компилятор подстрахует.
+</Aside>
+
+## Всё вместе
+
+<Code code={owners} lang="mojo" title="owners.mojo" />
+
+<Result output={"1. Pointer — ссылка на уже существующее значение\n   значение через указатель: 15\n2. OwnedPointer — владелец ровно один\n   размер буфера: 4096\n3. ArcPointer — владельцев несколько, есть счётчик\n   ссылок: 1\n   после копии: 2\n   попыток из обеих копий: 3 3\n4. Сырая память: выделили — обязаны освободить\n   содержимое: 0 200\n5. Список без указателей: ссылки — индексы массива\n   обход:  1  2  3"} />
+
+<Aside type="note" title="Когда всё это вам не понадобится">
+  Почти всегда. `List`, `Dict`, `String` управляют памятью сами
+  и покрывают подавляющее большинство задач.
+
+  Указатели нужны в трёх случаях: когда данные нужно отдать в чужую
+  библиотеку на C, когда вы пишете свой контейнер, и когда без общего
+  владения задача не выражается. Во всех остальных — берите `List`
+  и не усложняйте.
+</Aside>
+
+<Quiz>
+  <QuizItem q="Чем `Pointer` отличается от `OwnedPointer`?">
+    Владением. `Pointer` ничем не владеет и ничего не освобождает —
+    это вид на значение, которое живёт где-то ещё. `OwnedPointer`
+    кладёт значение в кучу и владеет им единолично, поэтому его нельзя
+    копировать: копия означала бы второго владельца и двойное
+    освобождение.
+  </QuizItem>
+  <QuizItem q="Почему `struct Node` с полем `next: OwnedPointer[Node]` не собирается, а с `Pointer[Node, MutUntrackedOrigin]` — собирается?">
+    Дело во владении. Чтобы уничтожить `Node`, нужно уничтожить
+    `OwnedPointer[Node]`, для чего нужно уничтожить `Node` — круг
+    не размыкается, и компилятор говорит `field 'next' has
+    non-'Deinitable' type`. Невладеющий `Pointer` уничтожать нечего,
+    поэтому рекурсия проходит. Цена — снятые проверки времени жизни:
+    в имени `MutUntrackedOrigin` это сказано прямо.
+  </QuizItem>
+  <QuizItem q="`ArcPointer[Node]` как поле структуры компилируется. Почему тогда списка на нём не построить?">
+    Потому что список надо чем-то заканчивать, а нулевого указателя
+    в Mojo нет — «ничего» выражают через `Optional`. И вот
+    `Optional[ArcPointer[Node]]` уже даёт `struct has recursive
+    reference to itself`. Без `Optional` список бесконечен, с ним
+    не компилируется.
+  </QuizItem>
+  <QuizItem q="Компилятор советует заменить `alloc[Int](4)` на `unsafe_alloc`, но `from std.memory import unsafe_alloc` не работает. В чём дело?">
+    В пути импорта: функция лежит в модуле, а не в пакете —
+    `from std.memory.alloc import unsafe_alloc`. Работать она будет,
+    но вернёт голый указатель без обёртки `Allocation`, а значит,
+    и без проверки «не забыли освободить». Для нового кода надёжнее
+    `alloc(Layout[Int](count=4))` с `dealloc(block^)`.
+  </QuizItem>
+  <QuizItem q="Что произойдёт, если забыть `dealloc`?">
+    Программа не соберётся. Компилятор скажет `abandoned without being
+    explicitly destroyed` и назовёт оба выхода: `dealloc(block^)` либо
+    `unsafe_leak()`. В отличие от C, утечка здесь — ошибка сборки,
+    а не молчаливая проблема времени выполнения.
+  </QuizItem>
+  <QuizItem q="Когда стоит брать `ArcPointer` вместо `OwnedPointer`?">
+    Только когда владельцев действительно несколько и заранее неизвестно,
+    кто закончит последним. Счётчик ссылок не бесплатен: каждое
+    копирование и уничтожение его меняют, а в многопоточном коде это
+    атомарная операция.
+  </QuizItem>
+</Quiz>
+
+## Что дальше
+
+[Замыкания и лямбды](/performance/closures/): списки захвата, которые
+мы уже видели у `vectorize`, — и почему без них компилятор отказывается
+угадывать.
