@@ -191,5 +191,41 @@ for (const file of collect(DOCS, '.mdx')) {
   }
 }
 
+// --- 3. Фрагменты из глав: хотя бы разбираются ----------------------------
+//
+// Блок без `def main` запустить нельзя — ему не хватает окружения. Но
+// грубые поломки поймать можно: если компилятор ругается не на отсутствие
+// контекста, а на что-то другое, код в главе, скорее всего, сломан.
+//
+// Список ниже — то, что для вырванного из главы куска нормально: он может
+// ссылаться на неопределённые имена, стоять вне функции, не иметь return.
+// Всё остальное считается поломкой.
+
+/** Ошибки, означающие «фрагменту не хватает окружения» — это нормально. */
+const NEEDS_CONTEXT =
+  /module does not define|unknown declaration|does not contain|unable to locate|has no attribute|no matching (function|method)|not implement|cannot implicitly convert|use of uninitialized|invalid call|constraint|cannot be converted|does not conform|lacking evidence|violated|recursive reference|non-'Deinitable'|capture convention|abandoned|unqualified access|dynamic value|materialize|implicitly copied|register passible|mutating method|invalid use|invalid bindings|cannot call|cannot use|failed to infer|global variables are not supported|must not appear at file scope|must be contained in a function|return expected at end|has no declaration|argument type must be specified|incompatible origin|expected ':' in function definition/i;
+
+for (const file of collect(DOCS, '.mdx')) {
+  const rel = relative(DOCS, file);
+  if (SKIP_FILES.includes(rel)) continue;
+
+  const fragments = [...readFileSync(file, 'utf-8').matchAll(/```mojo[^\n]*\n([\s\S]*?)```/g)]
+    .map((match) => match[1])
+    .filter((code) => !/\bdef main\b/.test(code));
+
+  for (const [index, code] of fragments.entries()) {
+    const tmp = join(tmpdir(), `mojo-ru-frag-${process.pid}-${checked}.mojo`);
+    writeFileSync(tmp, code, 'utf-8');
+    const result = runMojo(tmp);
+    unlinkSync(tmp);
+
+    if (!result.ok && !NEEDS_CONTEXT.test(result.stderr)) {
+      console.error(`✗ ${rel} (фрагмент #${index + 1}): не разбирается`);
+      console.error(result.stderr.trim());
+      failed++;
+    }
+  }
+}
+
 console.log(`\nПроверено: ${checked}, ошибок: ${failed}`);
 process.exit(failed > 0 ? 1 : 0);
