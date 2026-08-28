@@ -64,9 +64,9 @@ const norm = (s) =>
     .trim();
 
 /** Запускает mojo и возвращает { ok, stdout, stderr }. */
-function runMojo(file) {
+function runMojo(file, args = []) {
   try {
-    const stdout = execFileSync(MOJO, [file], {
+    const stdout = execFileSync(MOJO, [...args, file], {
       encoding: 'utf-8',
       timeout: 300_000,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -94,10 +94,30 @@ for (const file of collect(EXAMPLES, '.mojo')) {
   const rel = relative(EXAMPLES, file);
   const expectedFile = file.replace(/\.mojo$/, '.out');
 
+  const source = readFileSync(file, 'utf-8');
+
+  // Модуль расширения для Python: точки входа main у него нет, зато есть
+  // PyInit_. Запустить нельзя, но собрать в разделяемую библиотеку можно —
+  // это ловит почти всё, что может сломаться.
+  if (/@export[\s\S]*?\bPyInit_/.test(source)) {
+    checked++;
+    const so = join(tmpdir(), `mojo-ru-ext-${process.pid}-${checked}.so`);
+    const built = runMojo(file, ['build', '--emit', 'shared-lib', '-o', so]);
+    if (!built.ok) {
+      console.error(`✗ ${rel}: модуль расширения не собирается`);
+      console.error(built.stderr.trim());
+      failed++;
+      continue;
+    }
+    if (existsSync(so)) unlinkSync(so);
+    console.log(`✓ ${rel} (расширение Python, сборка)`);
+    continue;
+  }
+
   // Файлы без точки входа — это модули многофайлового примера. Запустить их
   // отдельно нельзя (`module does not define a 'main' function`), но они
   // проверяются вместе с той программой, которая их импортирует.
-  if (!/\bdef main\b/.test(readFileSync(file, 'utf-8'))) {
+  if (!/\bdef main\b/.test(source)) {
     console.log(`· ${rel}: модуль, проверяется через импорт`);
     continue;
   }
@@ -142,6 +162,14 @@ for (const file of collect(EXAMPLES, '.mojo')) {
 
 const UNSTABLE = '{/* вывод-меняется */}';
 
+/**
+ * Обращения, дающие на разных машинах разный ответ: версия интерпретатора,
+ * ширина векторного регистра, число ядер, часы. Проверять такой вывод
+ * сравнением нельзя.
+ */
+const MACHINE_SPECIFIC =
+  /sys\.version|platform\.|simd_width_of|num_physical_cores|num_performance_cores|num_logical_cores|perf_counter|monotonic|time\.now|getenv|os\.environ/;
+
 for (const file of collect(DOCS, '.mdx')) {
   const rel = relative(DOCS, file);
   if (SKIP_FILES.includes(rel)) continue;
@@ -174,7 +202,24 @@ for (const file of collect(DOCS, '.mdx')) {
       /^\s*(?:\{\/\*[^]*?\*\/\}\s*)?<Result output=\{"((?:[^"\\]|\\.)*)"\}\s*\/>/
     );
 
-    if (promised && !tail.slice(0, promised[0].length).includes(UNSTABLE)) {
+    const marked = tail.slice(0, promised ? promised[0].length : 0).includes(UNSTABLE);
+
+    // Вывод, зависящий от машины, нельзя записывать в <Result>: у CI и у
+    // автора он разный. Такое уже случалось дважды — с версией Python
+    // и с шириной SIMD-вектора.
+    if (promised && !marked && MACHINE_SPECIFIC.test(block.code)) {
+      console.error(
+        `✗ ${rel} (блок кода #${index + 1}): вывод зависит от машины, ` + `а сверяется с <Result>`
+      );
+      console.error(
+        '  Уберите машинно-зависимую часть из блока либо пометьте ' +
+          `результат строкой ${UNSTABLE} перед <Result>.`
+      );
+      failed++;
+      continue;
+    }
+
+    if (promised && !marked) {
       const expected = JSON.parse(`"${promised[1]}"`);
       if (norm(result.stdout) !== norm(expected)) {
         console.error(`✗ ${rel} (блок кода #${index + 1}): вывод не совпадает с <Result>`);

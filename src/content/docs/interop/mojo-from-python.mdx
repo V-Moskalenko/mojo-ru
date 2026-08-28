@@ -1,31 +1,330 @@
 ---
 title: Вызов Mojo из Python
-description: Ускорение существующего Python-кода модулями на Mojo.
+description: "PythonModuleBuilder и импорт-хук mojo.importer в Mojo 1.0: как переписать узкое место существующей программы и получить измеренное ускорение в 19 раз."
 sidebar:
   order: 2
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.0.0
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Code } from '@astrojs/starlight/components';
+import hotspot from '../../../../examples/interop/mojo-from-python/hotspot.mojo?raw';
+import runner from '../../../../examples/interop/mojo-from-python/run_hotspot.py?raw';
+import Result from '../../../components/Result.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+Обратное направление — то, ради которого Mojo, пожалуй, и придумывали.
+У вас есть работающая программа на Python. Переписывать её целиком никто
+не будет. Но одна функция в ней съедает всё время — вот её и перепишем.
+
+## Модуль расширения за двадцать строк
+
+Со стороны Mojo нужны три вещи: точка входа с особым именем, сборщик
+модуля и регистрация функций.
+
+```mojo
+from std.python import PythonObject, Python
+from std.python.bindings import PythonModuleBuilder
+from std.os import abort
+from std.math import sqrt
+
+
+@export
+def PyInit_hotspot() abi("C") -> PythonObject:
+    try:
+        var m = PythonModuleBuilder("hotspot")
+        m.def_function[sum_roots]("sum_roots", docstring="Сумма корней")
+        return m.finalize()
+    except e:
+        abort(String("не удалось создать модуль: ", e))
+
+
+def sum_roots(py_n: PythonObject) raises -> PythonObject:
+    var n = Int(py=py_n)
+    var total = 0.0
+    for i in range(n):
+        total += sqrt(Float64(i))
+    return PythonObject(total)
+```
+
+Разберём обязательное:
+
+| Что | Зачем | Если убрать |
+| --- | --- | --- |
+| `@export` | сделать функцию видимой из библиотеки | `ImportError: dynamic module does not define module export function (PyInit_hotspot)` |
+| `PyInit_hotspot` | Python ищет точку входа с таким именем | та же `ImportError` |
+| `abi("C")` | вызов по соглашению C | только предупреждение: `@export requires an explicit 'abi()' effect` |
+| `PythonModuleBuilder("hotspot")` | имя попадает в `__name__` модуля | ошибки нет, но модуль назовётся чужим именем |
+| `def_function[f]("имя")` | регистрация: функция параметром, имя аргументом | функции не будет видно из Python |
+
+Всё проверено прогоном. Обратите внимание на две последние строки: они
+мягче, чем кажется. Расхождение имени в `PythonModuleBuilder` импорт
+не ломает — модуль подключится, но `__name__` у него будет чужой,
+а с ним сломаются `repr`, `pickle` и поиск подмодулей. А `abi("C")`
+в 1.0 — предупреждение, не ошибка.
+
+<Aside type="note" title="Откуда в примере `try/except` с `abort`">
+  Функция с `abi("C")` не может быть `raises` — соглашение C исключений
+  не знает. Поэтому ошибку внутри `PyInit_` пробросить наружу нельзя,
+  и её приходится ловить самому, завершая программу через `abort`.
+  Это не перестраховка, а единственный доступный способ.
 </Aside>
 
-## Что будет в этой главе
+Сама `sum_roots` принимает и возвращает `PythonObject` — это единственный
+тип, допустимый **в сигнатурах** привязанных функций. Внутри мы сразу
+переводим аргумент в родной `Int` и дальше считаем на полной скорости.
 
-- Сборка модуля для Python
-- Передача данных
-- Интеграция в существующий проект
-- Пример ускорения
+## Со стороны Python
 
-## Хотите ускорить
+```python
+import mojo.importer   # включает импорт .mojo-файлов
+import hotspot
 
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+print(hotspot.sum_roots(1000))
+```
+
+Строчка `import mojo.importer` ставит перехватчик импорта: увидев
+`import hotspot`, Python найдёт `hotspot.mojo`, соберёт его в динамическую
+библиотеку и подключит. Собранное складывается в каталог `__mojocache__`
+рядом с исходником: первый запуск у нас занял 6,6 секунды, повторный —
+0,08. Пересборка происходит при изменении содержимого файла, а не при
+изменении времени правки.
+
+<Aside type="caution" title="Хук молча теряет предупреждения компилятора">
+  Ошибки сборки он покажет — `ImportError: Import of Mojo module failed
+  due to compilation error.` А вот предупреждения проглатывает: тот же
+  файл, собранный вручную, печатает
+  `warning: @export requires an explicit 'abi()' effect`, а через хук
+  импортируется молча. Проверено.
+
+  Поэтому перед выпуском стоит хотя бы раз прогнать `mojo build`
+  и посмотреть, что скажет компилятор.
+</Aside>
+
+<Aside type="caution" title="Не называйте скрипт так же, как модуль">
+  Ловушка, на которую натыкаешься сразу. Если файл-скрипт назван
+  `hotspot.py`, а модуль на Mojo — `hotspot`, Python попытается
+  импортировать сам скрипт:
+
+  ```text
+  AttributeError: partially initialized module 'hotspot' has no attribute
+  'sum_roots' (most likely due to a circular import)
+  ```
+
+  Сообщение про «циклический импорт» сбивает с толку — на самом деле
+  дело просто в совпадении имён. Назовите скрипт `run_hotspot.py`.
+</Aside>
+
+<Aside type="note" title="Какой Python запускать">
+  Тот, в чьём окружении установлен `mojo`. Если вы ставили его через
+  `uv`, это `.venv/bin/python` вашего проекта. Системный Python модуля
+  `mojo.importer` не увидит.
+</Aside>
+
+## Сколько это даёт
+
+Замер на настоящей задаче: сумма корней от нуля до двухсот тысяч.
+Один и тот же алгоритм, одинаковый результат — проверено сверкой сумм.
+
+| Реализация | Время |
+| --- | --- |
+| чистый Python 3.11 | 8,0 мс |
+| функция на Mojo через расширение | 0,42 мс |
+
+**Примерно в девятнадцать раз быстрее.** Три прогона дали 18,8, 19,4
+и 19,3 — число устойчивое.
+
+<Aside type="tip" title="Почему девятнадцать, а не сто">
+  В главе [Как честно мерить скорость](/performance/benchmarking/) мы
+  получали двадцатикратную разницу на суммировании списка — и здесь
+  порядок тот же. Это не совпадение: и там, и тут узкое место одно —
+  интерпретируемый цикл против скомпилированного.
+
+  Сотни раз получаются, когда к этому добавляется векторизация или
+  многопоточность. Голое переписывание цикла даёт примерно двадцать,
+  и это уже много.
+</Aside>
+
+## Что умеет пересекать границу
+
+Аргументов может быть несколько, а возвращать можно и составные объекты:
+
+```mojo
+def add(a: PythonObject, b: PythonObject) raises -> PythonObject:
+    return PythonObject(Int(py=a) + Int(py=b))
+
+
+def squares(n: PythonObject) raises -> PythonObject:
+    var out = Python.list()
+    for i in range(Int(py=n)):
+        out.append(i * i)
+    return out
+```
+
+Со стороны Python это обычные функции: `multi.add(2, 3)` даёт `5`,
+`multi.squares(4)` — `[0, 1, 4, 9]`.
+
+**Исключения тоже проходят.** Ошибка Mojo становится в Python объектом
+ровно типа `Exception`, с сохранённым сообщением:
+
+```text
+исключение Mojo в Python: Exception | что-то пошло не так
+```
+
+### Свои типы, а не только функции
+
+`PythonObject` — единственное, что можно написать в сигнатуре. Но это
+не значит, что наружу отдаются только числа и списки: структуру Mojo
+можно зарегистрировать как полноценный тип Python.
+
+```mojo
+@fieldwise_init
+struct Person(Movable, Writable):
+    var name: String
+    var age: Int
+
+    @staticmethod
+    def py_init(out self: Person, args: PythonObject, kwargs: PythonObject) raises:
+        self = Self(String(args[0]), Int(py=args[1]))
+
+    def write_to[W: Writer](self, mut writer: W):
+        writer.write("Person(", self.name, ", ", self.age, ")")
+```
+
+Регистрация — одной строкой в `PyInit_`, а возврат — через
+`PythonObject(alloc=...)`:
+
+```mojo
+_ = m.add_type[Person]("Person").def_py_init[Person.py_init]()
+m.def_function[make]("make")
+
+
+def make(n: PythonObject) raises -> PythonObject:
+    return PythonObject(alloc=Person(String("Аня"), Int(py=n)))
+```
+
+Со стороны Python это настоящий тип:
+
+```text
+<class 'Person'> | Person(name='Аня', age=Int(30))
+```
+
+Тип обязан объявлять `Movable` и `Writable`. Кроме `def_py_init` есть
+`def_init_defaultable`, `def_method` и `def_staticmethod` — то есть
+структуре можно отдать и методы.
+
+## Сборка для распространения
+
+Импорт-хук удобен при разработке, но тащить исходники и компилятор
+на машину пользователя незачем. Модуль собирается заранее:
+
+```bash
+mojo build hotspot.mojo --emit shared-lib -o hotspot.so
+```
+
+Получается обычная динамическая библиотека — у нас вышло около 160 КБ.
+Рядом с ней `import hotspot` работает **без** `import mojo.importer`:
+перехватчик нужен только для сборки на лету.
+
+<Aside type="danger" title="Библиотека не самодостаточна">
+  Соблазнительно решить, что раз есть `.so`, то Mojo на машине
+  пользователя больше не нужен. Это не так — проверено `ldd`:
+
+  ```text
+  libKGENCompilerRTShared.so  => .../modular/lib/libKGENCompilerRTShared.so
+  libMSupportGlobals.so       => .../modular/lib/libMSupportGlobals.so
+  libAsyncRTRuntimeGlobals.so => .../modular/lib/libAsyncRTRuntimeGlobals.so
+  ```
+
+  Хуже того, путь к ним зашит абсолютным:
+
+  ```text
+  RUNPATH: /путь/к/вашему/.venv/lib/python3.11/site-packages/modular/lib
+  ```
+
+  На машине без Mojo импорт падает с
+  `ImportError: libKGENCompilerRTShared.so: cannot open shared object file`.
+  Флага статической сборки у `mojo build` в 1.0 нет.
+
+  Рабочий приём — положить три библиотеки рядом и указать путь:
+
+  ```bash
+  LD_LIBRARY_PATH=. python run.py
+  ```
+
+  Комплект тянет примерно **2,1 МБ**, а не 160 КБ. И он, разумеется,
+  привязан к операционной системе и архитектуре, где собирался.
+  Подробнее — в главе
+  [Упаковка и распространение](/interop/packaging/).
+</Aside>
+
+## Всё вместе
+
+Два файла: модуль на Mojo и скрипт на Python, который его измеряет.
+
+<Code code={hotspot} lang="mojo" title="hotspot.mojo" />
+
+<Code code={runner} lang="python" title="run_hotspot.py" />
+
+<Result output={"результаты совпадают: True\nсписок квадратов: [0, 1, 4, 9, 16]\nPython: 8.018 мс\nMojo:   0.415 мс\nбыстрее примерно в 19 раз"} />
+
+Обратите внимание на первую строку вывода. Проверка совпадения
+результатов стоит в примере не для красоты: переписанная функция обязана
+считать **то же самое**, иначе ускорение бессмысленно. Это то же правило,
+что и в главе о SIMD, — сначала контрольная сумма, потом секундомер.
+
+<Aside type="tip" title="Порядок действий при ускорении программы">
+  1. **Измерить**, где на самом деле уходит время. Профилировщик Python
+     (`cProfile`) находит узкое место за минуту.
+  2. Убедиться, что это **один-два цикла**, а не вся программа.
+  3. Переписать их на Mojo, оставив всё остальное как было.
+  4. **Сверить результаты** со старой реализацией.
+  5. Измерить снова — и убедиться, что стало быстрее именно там,
+     где ожидалось.
+
+  Шаг первый пропускают чаще всего, и переписывают не то.
+</Aside>
+
+<Quiz>
+  <QuizItem q="Почему точка входа обязана называться `PyInit_hotspot`, а не как угодно?">
+    Это соглашение самого Python: загружая динамическую библиотеку как
+    модуль `hotspot`, интерпретатор ищет в ней функцию с именем
+    `PyInit_hotspot`. Иначе — `ImportError: dynamic module does not
+    define module export function`. А вот имя, переданное
+    в `PythonModuleBuilder`, жёстко совпадать не обязано: при
+    расхождении модуль импортируется, но получает чужой `__name__`.
+  </QuizItem>
+  <QuizItem q="Скрипт называется `hotspot.py`, модуль на Mojo — `hotspot`. Что произойдёт?">
+    Python импортирует сам скрипт вместо модуля и упадёт с
+    `partially initialized module ... most likely due to a circular
+    import`. Про циклический импорт — ложный след: дело в совпадении
+    имён. Скрипт нужно переименовать, например в `run_hotspot.py`.
+  </QuizItem>
+  <QuizItem q="Какой тип можно написать в сигнатуре функции, видимой из Python?">
+    Только `PythonObject`. Но это не значит, что наружу отдаются лишь
+    числа и списки: структуру Mojo можно зарегистрировать как настоящий
+    тип Python через `add_type[T]("Имя")` и вернуть
+    как `PythonObject(alloc=value)`. Внутри функции аргумент сразу
+    переводят в родные типы — `Int(py=...)`, `Float64(py=...)`.
+  </QuizItem>
+  <QuizItem q="Чем `mojo.importer` отличается от сборки через `--emit shared-lib`?">
+    Импорт-хук собирает `.mojo` на лету при первом импорте и кеширует
+    результат в `__mojocache__` — удобно при разработке, но он молча
+    теряет предупреждения компилятора. Готовая библиотека `.so`
+    подключается обычным `import` без хука. Самодостаточной она при этом
+    не становится: рядом нужны три библиотеки рантайма Mojo, а всего
+    комплекта выходит около 2 МБ.
+  </QuizItem>
+  <QuizItem q="Программа на Python работает медленно. С чего начать перенос на Mojo?">
+    С измерения, а не с переписывания. Профилировщик покажет, где
+    действительно уходит время; переписывать имеет смысл один-два
+    горячих цикла, а не всю программу. После переноса — обязательно
+    сверить результаты со старой реализацией, и только потом мерить
+    скорость.
+  </QuizItem>
+</Quiz>
+
+## Что дальше
+
+[Вызов C из Mojo](/interop/c-interop/): третье направление — как
+дотянуться до системных и сторонних библиотек, написанных на C.

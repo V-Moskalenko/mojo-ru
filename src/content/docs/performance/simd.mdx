@@ -125,9 +125,6 @@ int8:    64
 Из списка данные в вектор кладут не по одному, а сразу пачкой:
 
 ```mojo
-from std.sys import simd_width_of
-
-
 def main():
     var data = List[Float32](capacity=20)
     for i in range(20):
