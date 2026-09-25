@@ -1,9 +1,9 @@
 ---
 title: Управляющие конструкции
-description: Условия и циклы в Mojo 1.0 — что перенеслось из Python дословно, как менять элементы прямо в цикле и чего в языке пока нет.
+description: Условия и циклы в Mojo — что перенеслось из Python дословно, как менять элементы прямо в цикле и чего в языке пока нет.
 sidebar:
   order: 7
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -48,7 +48,7 @@ def main():
 
 <CompilerError msg="error: unexpected token in expression">
   <Fragment slot="meaning">
-    Конструкция `match` / `case` в Mojo 1.0 не поддерживается — компилятор
+    Конструкция `match` / `case` в Mojo не поддерживается — компилятор
     не знает такого ключевого слова и спотыкается на нём как на обычном
     выражении.
   </Fragment>
@@ -192,7 +192,7 @@ def main():
 
 ## Полезные встроенные функции
 
-Проверено на Mojo 1.0: `len`, `abs`, `min`, `max`, `round`, `pow`, `sort`,
+Проверено на Mojo: `len`, `abs`, `min`, `max`, `round`, `pow`, `sort`,
 `enumerate`, `zip`, `reversed`, `range` — на месте. Есть и `any` с `all`,
 но принимают они коллекцию, а не отдельное значение:
 
@@ -240,7 +240,7 @@ def main():
     перебирать `.items()`, где ключ и значение приходят вместе.
   </QuizItem>
   <QuizItem q="Чем заменить `match` из Python 3.10?">
-    Цепочкой `if` / `elif` / `else`: конструкции `match` в Mojo 1.0 нет.
+    Цепочкой `if` / `elif` / `else`: конструкции `match` в Mojo нет.
     Если разбор идёт по типам, а не по значениям, лучше подойдёт перегрузка
     функций — она разрешается на этапе компиляции.
   </QuizItem>

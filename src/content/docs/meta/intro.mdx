@@ -1,9 +1,9 @@
 ---
 title: Введение в метапрограммирование
-description: "Две фазы жизни программы на Mojo 1.0: что можно вычислить при сборке, как работают comptime if и comptime for и почему @parameter устарел."
+description: "Две фазы жизни программы на Mojo: что можно вычислить при сборке, как работают comptime if и comptime for и почему @parameter больше не нужен."
 sidebar:
   order: 1
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -33,12 +33,12 @@ import QuizItem from '../../../components/QuizItem.astro';
 
 ```mojo
 var size = 4
-var buffer = InlineArray[Int, size](fill=0)   # ошибка
+var buffer = Array[Int, size](fill=0)   # ошибка
 ```
 
 <CompilerError msg="error: cannot use a dynamic value in a parameter list">
   <Fragment slot="meaning">
-    `InlineArray` хранит данные прямо в себе, поэтому его длина должна быть
+    `Array` хранит данные прямо в себе, поэтому его длина должна быть
     известна компилятору — иначе он не знает, сколько места отвести.
     А `size` здесь обычная переменная: её значение появится только
     при запуске.
@@ -49,7 +49,7 @@ var buffer = InlineArray[Int, size](fill=0)   # ошибка
     ```mojo
     def main():
         comptime size = 4
-        var buffer = InlineArray[Int, size](fill=0)
+        var buffer = Array[Int, size](fill=0)
     ```
   </Fragment>
 </CompilerError>
@@ -181,22 +181,28 @@ def main():
 В собранной программе здесь не цикл, а три подряд идущих вызова `print`.
 Счётчика нет, проверки условия нет, перехода назад нет.
 
-<Aside type="caution" title="`@parameter if` и `@parameter for` устарели">
+<Aside type="caution" title="`@parameter if` и `@parameter for` удалены">
   Раньше эти конструкции писались декоратором `@parameter` перед `if`
   или `for`. Так они выглядят почти во всех статьях, ответах на форумах
-  и в учебниках, написанных до 1.0. Код соберётся, но компилятор скажет:
+  и в учебниках, написанных до 1.0. В 1.0 они ещё работали
+  с предупреждением, в 1.1 их убрали совсем:
 
   ```text
-  warning: '@parameter for' is deprecated; use 'comptime for'
-  warning: '@parameter if' is deprecated; use 'comptime if'
+  error: 'for' statement does not support decorators; remove the decorator
   ```
 
   Заменяйте на `comptime if` и `comptime for`.
 
-  Важно не перепутать: устарели именно эти две формы. Сам декоратор
-  `@parameter` перед **вложенной функцией** — совсем другая конструкция,
-  она жива и предупреждений не вызывает. О ней речь пойдёт в разделе
-  [Производительность](/performance/closures/).
+  Сам декоратор `@parameter` перед **вложенной функцией** — другая
+  конструкция, и она пока работает, но тоже помечена устаревшей:
+
+  ```text
+  warning: '@parameter' is deprecated; use '@__parameter'
+  ```
+
+  Двойное подчёркивание в новом имени намекает, что трогать его незачем:
+  вместо декоратора вложенной функции теперь пишут **список захвата**.
+  О нём — в главе [Замыкания и лямбды](/performance/closures/).
 </Aside>
 
 ## Что это даёт
@@ -302,10 +308,11 @@ def area[circle: Bool](size: Float64) -> Float64:
     выбранная ветка — проверки во время работы не остаётся вовсе.
   </QuizItem>
   <QuizItem q="Что делать, если в чужом коде встретился `@parameter if` или `alias`?">
-    Заменить на `comptime if` и `comptime`. Старые формы ещё работают,
-    но компилятор выдаёт предупреждение об устаревании. То же и
-    с `@parameter for`. Это стоит держать в голове при чтении любых
-    материалов о Mojo, написанных до 1.0, — а таких большинство.
+    Заменить на `comptime if` и `comptime`. `alias` ещё работает
+    с предупреждением, а `@parameter if` и `@parameter for` в 1.1 стали
+    ошибкой: `'for' statement does not support decorators`. Это стоит
+    держать в голове при чтении любых материалов о Mojo, написанных
+    до 1.0, — а таких большинство.
   </QuizItem>
 </Quiz>
 

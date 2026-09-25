@@ -1,9 +1,9 @@
 ---
 title: Что изменилось
-description: Главные отличия Mojo 1.0 от Python — с настоящими сообщениями компилятора и объяснением, почему сделано именно так.
+description: Главные отличия Mojo от Python — с настоящими сообщениями компилятора и объяснением, почему сделано именно так.
 sidebar:
   order: 2
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -16,7 +16,7 @@ import QuizItem from '../../../components/QuizItem.astro';
 
 Предыдущая глава была про хорошие новости. Эта — про то, обо что вы
 споткнётесь в первый день. Все сообщения об ошибках ниже настоящие:
-получены на Mojo 1.0, а не придуманы.
+получены на Mojo, а не придуманы.
 
 <Aside type="tip" title="Общий принцип">
   Почти каждое отличие сводится к одному: **Python откладывает решения
@@ -86,7 +86,7 @@ def add(a: Int, b: Int) -> Int:
 
 ## 3. F-строк нет
 
-Пожалуй, самая обидная потеря для питониста. `f"..."` в Mojo 1.0
+Пожалуй, самая обидная потеря для питониста. `f"..."` в Mojo
 не поддерживается, и ошибка при этом выглядит загадочно:
 
 <CompilerError msg={`error: expected ')' in call argument list
@@ -222,7 +222,7 @@ print(a + Float64(b))   # так правильно
 
 <CompilerError msg="error: classes are not supported yet">
   <Fragment slot="meaning">
-    Ключевого слова `class` в Mojo 1.0 нет. Слово «yet» в сообщении
+    Ключевого слова `class` в Mojo нет. Слово «yet» в сообщении
     намекает, что когда-нибудь появится, но сегодня его нет.
   </Fragment>
   <Fragment slot="fix">
@@ -347,7 +347,7 @@ uv run mojo build main.mojo   # получить исполняемый файл
 
 ## Сводка
 
-| В Python | В Mojo 1.0 |
+| В Python | В Mojo |
 | --- | --- |
 | Код на верхнем уровне | Только внутри `def main()` |
 | `def add(a, b)` | `def add(a: Int, b: Int) -> Int` |

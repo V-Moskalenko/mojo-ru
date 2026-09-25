@@ -1,9 +1,9 @@
 ---
 title: Обработка ошибок
-description: "Исключения в Mojo 1.0 — raises как часть контракта функции, try/except/else/finally, Optional вместо исключения и контекстные менеджеры."
+description: "Исключения в Mojo — raises как часть контракта функции, try/except/else/finally, Optional вместо исключения и контекстные менеджеры."
 sidebar:
   order: 8
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -122,7 +122,7 @@ def main():
 возраст отрицательный
 </Result>
 
-Своих классов исключений в Mojo 1.0 нет:
+Своих классов исключений в Mojo нет:
 
 <CompilerError msg="error: cannot implicitly convert 'ParseError' value to 'Error'">
   <Fragment slot="meaning">
@@ -469,7 +469,7 @@ finally: выполняется всегда
     Если нужно передать причину сбоя — бросайте исключение.
   </QuizItem>
   <QuizItem q="Как объявить собственный тип исключения?">
-    Никак: в Mojo 1.0 тип ошибки единственный — `Error`. Различают ошибки
+    Никак: в Mojo тип ошибки единственный — `Error`. Различают ошибки
     по тексту сообщения (например, по префиксу) либо возвращают результат
     другим способом — через `Optional` или свой тип-результат.
   </QuizItem>

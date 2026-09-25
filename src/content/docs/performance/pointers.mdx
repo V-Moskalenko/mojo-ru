@@ -1,9 +1,9 @@
 ---
 title: Указатели и память
-description: "Pointer, OwnedPointer и ArcPointer в Mojo 1.0, ручное выделение памяти через alloc и Layout, и почему рекурсивные структуры пока не собираются."
+description: "Pointer, OwnedPointer и ArcPointer в Mojo, ручное выделение памяти через alloc и Layout, и почему рекурсивные структуры пока не собираются."
 sidebar:
   order: 4
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -99,7 +99,7 @@ def main():
 ## Владеющая рекурсия не собирается
 
 Классический способ построить список или дерево — поле, указывающее
-на такую же структуру. В Mojo 1.0 это получается, но **не с любым
+на такую же структуру. В Mojo это получается, но **не с любым
 указателем**. Владеющие не годятся.
 
 С `OwnedPointer` ошибка приходит сразу, при разборе:

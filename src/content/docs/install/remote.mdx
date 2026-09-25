@@ -3,7 +3,7 @@ title: Удалённая разработка
 description: Как писать на Mojo, когда компилятор живёт не на вашей машине — Remote-SSH, Dev Containers и GitHub Codespaces.
 sidebar:
   order: 5
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Steps, Tabs, TabItem, Aside, FileTree } from '@astrojs/starlight/components';
@@ -111,7 +111,7 @@ import QuizItem from '../../../components/QuizItem.astro';
 
 ```json title=".devcontainer/devcontainer.json"
 {
-  "name": "Mojo 1.0",
+  "name": "Mojo",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && ~/.local/bin/uv sync",
   "customizations": {

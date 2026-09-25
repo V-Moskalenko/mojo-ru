@@ -1,9 +1,9 @@
 ---
 title: Структуры
-description: "Структуры в Mojo 1.0 — поля, конструкторы, методы, константы, трейты копирования и то, чем struct принципиально отличается от питоновского class."
+description: "Структуры в Mojo — поля, конструкторы, методы, константы, трейты копирования и то, чем struct принципиально отличается от питоновского class."
 sidebar:
   order: 9
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -14,7 +14,7 @@ import CompilerError from '../../../components/CompilerError.astro';
 import Quiz from '../../../components/Quiz.astro';
 import QuizItem from '../../../components/QuizItem.astro';
 
-Классов в Mojo 1.0 нет — совсем:
+Классов в Mojo нет — совсем:
 
 <CompilerError msg="error: classes are not supported yet">
   <Fragment slot="meaning">
@@ -429,10 +429,10 @@ def main() raises:
   от количества.
 </Aside>
 
-Из имеющихся в 1.0 трейтов чаще всего встречаются `Copyable`, `Movable`,
+Из имеющихся трейтов чаще всего встречаются `Copyable`, `Movable`,
 `ImplicitlyCopyable`, `Deinitable`, `Writable`, `Hashable`, `KeyElement`,
 `Sized`, `Comparable`, `Boolable`, `Intable`, `Defaultable`. Питоновских
-`Stringable` и `Representable` в 1.0 нет — за печать отвечает `Writable`.
+`Stringable` и `Representable` в языке нет — за печать отвечает `Writable`.
 
 ## Уничтожение
 

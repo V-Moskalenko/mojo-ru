@@ -31,7 +31,7 @@ def main():
     print("1. значение посчитано при сборке:", SIZE)
 
     print("2. его можно использовать там, где нужна константа")
-    var buffer = InlineArray[Int, SIZE](fill=0)
+    var buffer = Array[Int, SIZE](fill=0)
     print("   длина буфера:", len(buffer))
 
     print("3. ветка выбрана при сборке")

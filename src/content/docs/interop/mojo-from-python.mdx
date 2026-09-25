@@ -1,9 +1,9 @@
 ---
 title: Вызов Mojo из Python
-description: "PythonModuleBuilder и импорт-хук mojo.importer в Mojo 1.0: как переписать узкое место существующей программы и получить измеренное ускорение в 19 раз."
+description: "PythonModuleBuilder и импорт-хук mojo.importer в Mojo: как переписать узкое место существующей программы и получить измеренное ускорение в 19 раз."
 sidebar:
   order: 2
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -244,7 +244,7 @@ mojo build hotspot.mojo --emit shared-lib -o hotspot.so
 
   На машине без Mojo импорт падает с
   `ImportError: libKGENCompilerRTShared.so: cannot open shared object file`.
-  Флага статической сборки у `mojo build` в 1.0 нет.
+  Флага статической сборки у `mojo build` нет.
 
   Рабочий приём — положить три библиотеки рядом и указать путь:
 

@@ -1,9 +1,9 @@
 ---
 title: Вычисления на этапе компиляции
-description: "Что именно компилятор Mojo 1.0 умеет посчитать сам: comptime-значения и таблицы, comptime assert, материализация и границы вычислений."
+description: "Что именно компилятор Mojo умеет посчитать сам: comptime-значения и таблицы, comptime assert, материализация и границы вычислений."
 sidebar:
   order: 2
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -64,8 +64,8 @@ def main():
 во время работы.
 
 ```mojo
-def build_powers() -> InlineArray[Int, 8]:
-    var table = InlineArray[Int, 8](fill=0)
+def build_powers() -> Array[Int, 8]:
+    var table = Array[Int, 8](fill=0)
     var value = 1
     for index in range(8):
         table[index] = value
@@ -86,7 +86,7 @@ def main():
 Ни цикла, ни умножений в готовой программе нет — там стоит `128`.
 
 <Aside type="note" title="Почему `return table^`">
-  `InlineArray` не копируется неявно, поэтому вернуть его из функции
+  `Array` не копируется неявно, поэтому вернуть его из функции
   можно только передачей владения. Без сигила компилятор напомнит:
 
   ```text
@@ -96,20 +96,27 @@ def main():
   Подробности — в главе [Копирование и перемещение](/ownership/copy-move/).
 </Aside>
 
-<Aside type="tip" title="Почему в ошибке написано `Array`, а не `InlineArray`">
-  Это один и тот же тип. Настоящее имя — `Array`, а `InlineArray` оставлено
-  как переходное имя для кода, написанного до 1.0. Проверяется в одну
-  строку: значение типа `InlineArray[Int, 3]` спокойно присваивается
-  переменной, объявленной как `Array[Int, 3]`.
+<Aside type="tip" title="Почему в ошибке написано `Int(8)`">
+  Длина — это параметр, и компилятор печатает его так, как он выглядит
+  внутри: обёрнутым в тип. `Array[Int, Int(8)]` и `Array[Int, 8]` —
+  одно и то же.
 
-  Так что можно писать и короче:
+  Заполнить массив можно и сразу, литералом:
 
   ```mojo
   comptime SCALE: Array[Int, 5] = [1, 1024, 1048576, 1073741824, 1099511627776]
   ```
+</Aside>
 
-  Заодно объясняется и `Int(8)` в тексте ошибки: длина — это параметр,
-  и компилятор печатает его так, как он выглядит внутри — обёрнутым в тип.
+<Aside type="caution" title="`InlineArray` больше нет">
+  В коде, написанном до 1.1, тот же тип назывался `InlineArray`. В 1.1
+  это имя удалили совсем:
+
+  ```text
+  error: use of unknown declaration 'InlineArray'
+  ```
+
+  Замена дословная — везде пишите `Array`.
 </Aside>
 
 ## `comptime assert`: проверка, которая не доживает до запуска
@@ -230,7 +237,7 @@ note: failed to interpret operation pop.external_call{func: "abs" ...}
 
 Критерий у неё ровно один — трейт `ImplicitlyCopyable`. Что копируется
 неявно, то и материализуется само: `Int`, `Float64`, `Bool` и, что важно,
-`String`. Всё остальное — `InlineArray`, `List`, ваши собственные
+`String`. Всё остальное — `Array`, `List`, ваши собственные
 `Copyable`-типы — компилятор потребует перенести явно:
 
 <CompilerError msg="error: cannot materialize comptime value of type 'Array[Int, Int(8)]' to runtime because it is not 'ImplicitlyCopyable'">

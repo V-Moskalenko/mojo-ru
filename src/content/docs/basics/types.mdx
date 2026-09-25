@@ -1,9 +1,9 @@
 ---
 title: Система типов
-description: Встроенные типы Mojo 1.0 — Int, Float64, Bool, String, SIMD, Tuple и коллекции. Почему Int это не Int64 и где прячется ловушка с делением.
+description: Встроенные типы Mojo — Int, Float64, Bool, String, SIMD, Tuple и коллекции. Почему Int это не Int64 и где прячется ловушка с делением.
 sidebar:
   order: 3
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -32,7 +32,7 @@ import QuizItem from '../../../components/QuizItem.astro';
 | `Tuple` | Кортеж, элементы могут быть разных типов | `var t = (1, "два", 3.0)` |
 | `List` | Список значений одного типа | `var xs: List[Int] = [1, 2, 3]` |
 | `Dict` | Словарь | `var d = Dict[String, Int]()` |
-| `InlineArray` | Массив фиксированной длины, живёт на стеке | `InlineArray[Int, 3](fill=0)` |
+| `Array` | Массив фиксированной длины, живёт на стеке | `Array[Int, 3](fill=0)` |
 
 Из стандартной библиотеки импортируются, например:
 
@@ -200,7 +200,7 @@ Int / Int: 3
 ```mojo
 var numbers: List[Int] = [1, 2, 3]
 var ages = Dict[String, Int]()
-var buffer = InlineArray[Int, 3](fill=0)
+var buffer = Array[Int, 3](fill=0)
 ```
 
 Все они обобщённые (*generic*): тип элементов указывается в квадратных
@@ -208,7 +208,7 @@ var buffer = InlineArray[Int, 3](fill=0)
 в памяти — без обёрток, заголовков и указателей, как это устроено
 в Python. Отсюда и скорость, и требование однородности.
 
-`InlineArray` отличается от `List` тем, что его длина известна на этапе
+`Array` отличается от `List` тем, что его длина известна на этапе
 компиляции, и он не выделяет память в куче — живёт прямо на стеке.
 Для маленьких буферов фиксированного размера это заметно быстрее.
 

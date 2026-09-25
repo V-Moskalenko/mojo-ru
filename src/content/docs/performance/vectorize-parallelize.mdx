@@ -1,9 +1,9 @@
 ---
 title: Векторизация и параллелизм
-description: "vectorize и unroll_factor из стандартной библиотеки Mojo 1.0, списки захвата в замыканиях, parallelize из пакета max и измеренная цена запуска потоков."
+description: "vectorize и unroll_factor из стандартной библиотеки Mojo, списки захвата в замыканиях, parallelize из пакета max и измеренная цена запуска потоков."
 sidebar:
   order: 3
-mojoVersion: 1.0.0
+mojoVersion: 1.1.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -102,6 +102,10 @@ def main():
 
   Причём ошибка появится, даже если функция ничего не захватывает.
   Правильно — обычная вложенная `def` со списком захвата.
+
+  В 1.1 сам декоратор вдобавок помечен устаревшим
+  (`'@parameter' is deprecated; use '@__parameter'`), так что повода
+  писать его не осталось вовсе.
 </Aside>
 
 ## `unroll_factor`: второй резерв
@@ -124,7 +128,7 @@ vectorize[W, unroll_factor=4](len(data), step)
 
 <Aside type="danger" title="`parallelize` нет в стандартной библиотеке">
   Официальное руководство показывает `parallelize` в примерах, и почти
-  все статьи о Mojo берут его из `algorithm`. В Mojo 1.0.0 такого имени
+  все статьи о Mojo берут его из `algorithm`. В Mojo.0 такого имени
   в стандартной библиотеке **нет** — ни в `std.algorithm`, ни где-либо
   ещё:
 
@@ -267,7 +271,7 @@ def main():
     порог будет ещё выше: потоков больше, запускать их дороже.
   </QuizItem>
   <QuizItem q="Статья предлагает `from algorithm import parallelize`. Почему не собирается?">
-    Потому что в Mojo 1.0 этой функции в стандартной библиотеке нет:
+    Потому что в Mojo этой функции в стандартной библиотеке нет:
     `package 'algorithm' does not contain 'parallelize'`. Она переехала
     в отдельный пакет `max` — нужно `uv add max` и импорт
     `from max.algorithm import parallelize`. Статья написана до 1.0.
