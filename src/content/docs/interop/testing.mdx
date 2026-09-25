@@ -1,31 +1,747 @@
 ---
 title: Тестирование и отладка
-description: Встроенный тест-раннер и отладчик.
+description: "Тесты в Mojo 1.1 без pytest: утверждения из std.testing и TestSuite, ловушки assert_raises и дробных чисел, падения внутри тестов, запуск в CI и отладчик LLDB из командной строки."
 sidebar:
   order: 5
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.1.0
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Code, FileTree } from '@astrojs/starlight/components';
+import cents from '../../../../examples/interop/testing/src/money/cents.mojo?raw';
+import moneyInit from '../../../../examples/interop/testing/src/money/__init__.mojo?raw';
+import testMoney from '../../../../examples/interop/testing/test/test_money.mojo?raw';
+import Result from '../../../components/Result.astro';
+import PyMojo from '../../../components/PyMojo.astro';
+import CompilerError from '../../../components/CompilerError.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
-</Aside>
+В Python тесты — это pytest: функции `test_*`, голые `assert`,
+а обнаружением и запуском занимается отдельная программа. В Mojo
+всё нужное лежит в стандартной библиотеке, в модуле `std.testing`:
+функции-утверждения и `TestSuite`, который находит тесты в файле
+и запускает их.
 
-## Что будет в этой главе
+Отдельной команды для тестов нет. Если в старой статье вы видите
+`mojo test`, знайте: её убрали ещё в версии 0.25.7 (ноябрь 2025 года).
+В 1.1 вы получите:
 
-- Написание тестов
-- Запуск mojo test
-- Отладчик LLDB в VS Code
-- Тесты в CI
+```text
+mojo: error: no such command 'test'
+```
 
-## Хотите ускорить
+Тестовый файл — это обычная программа, и запускается он обычным
+`mojo run`.
 
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+## Первый тест
+
+```mojo title="test_split.mojo"
+from std.testing import assert_equal, TestSuite
+
+
+def split_bill(total: Int, people: Int) -> List[Int]:
+    """Делит счёт поровну; лишние копейки достаются первым по одной."""
+    var share = total // people
+    var extra = total % people
+    var result = List[Int]()
+    for i in range(people):
+        result.append(share + (1 if i < extra else 0))
+    return result^
+
+
+def test_split_even() raises:
+    assert_equal(split_bill(900, 3), [300, 300, 300])
+
+
+def test_split_with_remainder() raises:
+    assert_equal(split_bill(1000, 3), [334, 333, 333])
+
+
+def main() raises:
+    TestSuite.discover_tests[__functions_in_module()]().run()
+```
+
+{/* вывод-меняется */}
+<Result output={"Running 2 tests for /home/you/test_split.mojo\n    PASS [ 0.005 ] test_split_even\n    PASS [ 0.001 ] test_split_with_remainder\n--------\nSummary [ 0.005 ] 2 tests run: 2 passed , 0 failed , 0 skipped"} />
+
+```bash
+uv run mojo run test_split.mojo
+```
+
+Разберём последнюю строку. `__functions_in_module()` — встроенная
+в компилятор функция, которая отдаёт список всех функций файла.
+`discover_tests` отбирает из них те, чьё имя начинается с `test_`,
+а `run()` запускает их по очереди и печатает отчёт.
+
+Числа в квадратных скобках — время в **миллисекундах**, а не в секундах,
+как можно подумать: единица в отчёте не подписана. Проверить легко — тест
+из одного `sleep(0.05)` показывает `PASS [ 50.181 ]`.
+
+<PyMojo>
+  <Fragment slot="python">
+```python
+# test_split.py
+def test_split_even():
+    assert split_bill(900, 3) == [300, 300, 300]
+
+# запуск: pytest
+```
+  </Fragment>
+  <Fragment slot="mojo">
+```mojo
+def test_split_even() raises:
+    assert_equal(split_bill(900, 3), [300, 300, 300])
+
+# запуск: mojo run, main с TestSuite
+```
+  </Fragment>
+  <Fragment slot="note">
+    Вместо голого `assert` — функции-утверждения, которые при неудаче
+    бросают ошибку. Поэтому тестовая функция обязана быть `raises`.
+    А роль pytest играет `main` с `TestSuite` в самом файле.
+  </Fragment>
+</PyMojo>
+
+## Когда тест падает
+
+Допустим, первая версия `split_bill` была наивной — каждому по `total // people`:
+
+```mojo
+def split_bill(total: Int, people: Int) -> List[Int]:
+    """Делит счёт поровну."""
+    var result = List[Int]()
+    for _ in range(people):
+        result.append(total // people)
+    return result^
+```
+
+Второй тест это ловит:
+
+```text
+Running 2 tests for /home/you/test_split.mojo
+    PASS [ 0.036 ] test_split_even
+    FAIL [ 0.316 ] test_split_with_remainder
+      At /home/you/test_split.mojo:17:17: AssertionError: `left == right` comparison failed:
+         left: [333, 333, 333]
+        right: [334, 333, 333]
+--------
+Summary [ 0.352 ] 2 tests run: 1 passed , 1 failed , 0 skipped
+Test suite' /home/you/test_split.mojo 'failed!
+
+mojo: error: execution exited with a non-zero result: 1
+```
+
+Из отчёта видно всё нужное: какой тест, в какой строке, что получилось
+(`left` — первый аргумент) и что ожидалось (`right`). Копейка потерялась:
+999 вместо 1000.
+
+Три детали про поведение `TestSuite`:
+
+- **Упавший тест не останавливает остальные** — они выполняются, и в конце
+  подводится итог.
+- **Код возврата — 1**, если упал хотя бы один тест. На этом держится
+  проверка в CI: красная сборка без всякой настройки.
+- **Отчёт уходит в разные потоки.** Когда всё прошло — в обычный вывод
+  (stdout). Когда что-то упало — весь отчёт целиком становится текстом
+  ошибки и уходит в stderr, а перед ним появляются строки
+  `Unhandled exception caught during execution` и подсказка про
+  `MODULAR_DEBUG`. Если перенаправляете вывод в файл, берите оба потока:
+  `2>&1`.
+
+Опечатка `Test suite' … 'failed!` с кавычками не на месте — так
+в стандартной библиотеке 1.1, это не ошибка копирования.
+
+## Каким должен быть тест
+
+`discover_tests` принимает функцию за тест, если её имя начинается
+с `test_`. Требования к такой функции:
+
+- объявлена в самом файле, на верхнем уровне, а не методом структуры;
+- не принимает аргументов;
+- ничего не возвращает;
+- помечена `raises` — даже если внутри нет ни одного утверждения.
+
+Нарушение обнаруживается **при запуске**, а не при компиляции,
+и останавливает весь файл — не выполняется ни один тест:
+
+<CompilerError msg="Unhandled exception caught during execution: test function 'test_no_raises' has nonconforming signature">
+  <Fragment slot="meaning">
+    Функция называется `test_…`, но не подходит под требования: принимает
+    аргумент, возвращает значение или объявлена без `raises`.
+  </Fragment>
+  <Fragment slot="fix">
+    Приведите сигнатуру к виду `def test_что_то() raises:`. Если это
+    вспомогательная функция, а не тест, переименуйте её, чтобы имя
+    не начиналось с `test_`.
+  </Fragment>
+</CompilerError>
+
+## Утверждения
+
+Все они импортируются из `std.testing` и при неудаче бросают ошибку
+с понятным сообщением:
+
+| Функция | Проверяет |
+| --- | --- |
+| `assert_equal(a, b)` | `a == b`; работает с числами, строками, списками |
+| `assert_not_equal(a, b)` | `a != b` |
+| `assert_true(x)`, `assert_false(x)` | условие истинно или ложно |
+| `assert_almost_equal(a, b)` | дробные числа равны с допуском |
+| `with assert_raises():` | блок внутри бросает ошибку |
+
+У каждой есть необязательный аргумент `msg` — он добавляется к сообщению
+и сильно помогает, когда утверждений в тесте несколько:
+
+```mojo
+assert_true(age > 10, msg="пятилетний должен быть старше десяти?")
+```
+
+```text
+At /home/you/test_age.mojo:…: AssertionError: пятилетний должен быть старше десяти?
+```
+
+### `assert_raises` ловит любую ошибку
+
+Возьмём разбор возраста с двумя разными ошибками:
+
+```mojo
+def parse_age(text: String) raises -> Int:
+    var n = Int(text)
+    if n < 0:
+        raise Error("возраст не может быть отрицательным")
+    return n
+```
+
+Хотим проверить, что отрицательный возраст отвергается, но ошибаемся
+во входных данных:
+
+```mojo
+def test_negative_age() raises:
+    with assert_raises():
+        _ = parse_age("сорок")   # хотели "-40"
+```
+
+Тест **проходит**. `parse_age("сорок")` действительно бросает ошибку —
+только другую: `String is not convertible to integer`. Голый
+`assert_raises()` доволен любой.
+
+Поэтому почти всегда указывайте, какую ошибку вы ждёте:
+
+```mojo
+def test_negative_age() raises:
+    with assert_raises(contains="отрицательн"):
+        _ = parse_age("сорок")
+```
+
+Теперь тест честно падает — чужая ошибка пролетает сквозь
+`assert_raises` и становится причиной провала:
+
+```text
+FAIL [ 0.001 ] test_negative_age
+  String is not convertible to integer with base 10: 'сорок'
+```
+
+А если блок не бросил ничего, сообщение будет таким:
+
+```text
+AssertionError: Didn't raise at /home/you/test_age.mojo:…
+```
+
+Присваивание `_ = ...` внутри блока нужно, чтобы компилятор не ругался
+на неиспользованный результат.
+
+## Дробные числа: не сравнивайте на точное равенство
+
+В Python это классика:
+
+```python
+>>> 0.1 + 0.2 == 0.3
+False
+```
+
+В Mojo всё интереснее:
+
+```mojo
+def main():
+    print(0.1 + 0.2 == 0.3)
+
+    var a: Float64 = 0.1
+    var b: Float64 = 0.2
+    print(a + b == 0.3)
+```
+
+<Result output={"True\nFalse"} />
+
+Литералы `0.1 + 0.2` компилятор складывает сам, с бесконечной точностью,
+и получает ровно `0.3`. А те же числа в переменных складываются по обычным
+правилам `Float64` — с привычной ошибкой округления. Значит, тест, который
+проверяет функцию на литералах, может пройти, а на настоящих данных та же
+функция даст другой ответ.
+
+Есть и второе расхождение — с Python и даже между сборками самого Mojo:
+
+```mojo
+def scale_minus_one(x: Float64, y: Float64) -> Float64:
+    return x * y - 1.0
+
+
+def main():
+    print("литералы:", scale_minus_one(0.1, 10.0))
+    var prices: List[Float64] = [0.1, 0.2]
+    print("из списка:", scale_minus_one(prices[0], 10.0))
+```
+
+<Result output={"литералы: 0.0\nиз списка: 5.551115123125783e-17"} />
+
+Python на `0.1 * 10.0 - 1.0` отвечает `0.0`. Mojo — тоже, пока аргументы
+известны при компиляции. Для числа из списка он по умолчанию сливает
+умножение и вычитание в одну инструкцию FMA: она не округляет промежуточное
+произведение, и ответ меняется в последних знаках. Справка `mojo run --help`
+говорит об этом прямо: такое слияние нарушает строгое следование IEEE 754.
+Мы проверили, от чего это зависит:
+
+| Сборка | Из списка |
+| --- | --- |
+| по умолчанию (`-O3`, процессор с FMA) | `5.551115123125783e-17` |
+| `--fp-mode contract=off` | `0.0` |
+| `-O0` | `0.0` |
+| `--target-cpu x86-64-v2` (без FMA) | `0.0` |
+| Python 3 | `0.0` |
+
+Любопытно, что «неправильный» ответ здесь точнее: `5.551115123125783e-17` —
+это ровно то, сколько получается, если умножить хранимое в памяти
+приближение `0.1` на 10 без округления (в Python это `math.fma(0.1, 10.0, -1.0)`).
+Но точнее или нет — ответ зависит от флагов сборки и процессора. Вывод
+для тестов один: дробные результаты сравнивают с допуском.
+
+```mojo
+def test_scale() raises:
+    var prices: List[Float64] = [0.1]
+    assert_almost_equal(scale_minus_one(prices[0], 10.0), 0.0)
+```
+
+По умолчанию допуск такой: `|a - b| <= max(rtol * max(|a|, |b|), atol)`,
+где `atol = 1e-8`, `rtol = 1e-5`. Оба можно задать явно:
+`assert_almost_equal(x, 3.33, atol=0.001)`.
+
+## Граничные случаи: тест прошёл, а ошибка осталась
+
+Посмотрим на разбор суммы из итогового примера главы. Первая версия
+проверяла знак так:
+
+```mojo
+var rubles = Int(parts[0])
+if rubles < 0:
+    raise Error("сумма не может быть отрицательной: " + text)
+```
+
+И тест на это был:
+
+```mojo
+def test_parse_rejects_negative() raises:
+    with assert_raises(contains="отрицательной"):
+        _ = parse_cents("-3.00")
+```
+
+Он проходил. А потом добавился ещё один случай — меньше рубля:
+
+```mojo
+def test_parse_rejects_negative_kopecks() raises:
+    with assert_raises(contains="отрицательной"):
+        _ = parse_cents("-0.50")
+```
+
+```text
+FAIL [ 0.003 ] test_parse_rejects_negative_kopecks
+  AssertionError: Didn't raise at /home/you/money/test/test_money.mojo:29:23
+```
+
+`Int("-0")` — это просто `0`, знак потерялся, и «минус пятьдесят копеек»
+превратились в плюс пятьдесят. Первое, что приходит в голову, — смотреть
+на знак в самой строке: `if text.startswith("-")`. Тест позеленел.
+
+Но стоит проверить ещё пару соседних случаев, и выясняется, что `Int()`
+прощает больше, чем кажется: пропускает пробелы в начале, знак `+`
+и подчёркивания между цифрами. А умножение на 100 молча переполняется:
+
+| Строка | Версия со `startswith` возвращает |
+| --- | --- |
+| `" -0.50"` | `50` — пробел спрятал минус от `startswith` |
+| `"+5"` | `500` |
+| `"1_000"` | `100000` |
+| `"9223372036854775807"` | `-100` — переполнение |
+
+Надёжнее не угадывать, что пропустит `Int()`, а проверять формат самим:
+до точки — только цифры и не больше 15 штук (иначе сумма в копейках
+не влезет в `Int`), после точки — ровно две цифры. Так устроена итоговая
+версия в конце главы, и на каждую строку из таблицы в ней есть тест.
+
+Мораль старая, но в тестах её забывают первой: проверяйте не только
+«обычное» значение, но и нуль, границу, значения чуть по обе стороны
+от неё — и то, что библиотечная функция делает со странным вводом.
+
+## Тысяча случайных проверок
+
+Некоторые свойства удобнее проверять не на двух-трёх примерах, а на тысяче
+случайных. У деления счёта их два: сумма долей равна счёту, а доли
+отличаются не больше чем на копейку.
+
+```mojo
+def test_split_keeps_every_kopeck() raises:
+    seed(42)
+    for _ in range(1000):
+        var total = Int(random_si64(0, 1_000_000))
+        var people = Int(random_si64(1, 50))
+        var parts = split_bill(total, people)
+
+        var paid = 0
+        for part in parts:
+            paid += part
+        assert_equal(paid, total, msg=String(total, " на ", people))
+        assert_true(parts[0] - parts[len(parts) - 1] <= 1)
+```
+
+Два приёма делают такой тест полезным, а не случайным:
+
+- **`seed(42)`** — одни и те же «случайные» числа при каждом запуске.
+  Упавший тест упадёт снова, и его можно отлаживать.
+- **`msg` с входными данными.** Без него вы узнаете только «сумма
+  не сошлась», а с ним — на каких именно числах.
+
+Наивная версия `split_bill` из начала главы падает на первой же итерации,
+и благодаря `msg` сразу видно, на каких данных:
+
+```text
+FAIL [ 0.113 ] test_split_keeps_every_kopeck
+  At /home/you/money/test/test_money.mojo:72:21: AssertionError: `left == right` comparison failed:
+     left: 818440
+    right: 818450
+    reason: 818450 на 40
+```
+
+В стандартной библиотеке 1.1 уже есть заготовка для таких проверок —
+модуль `std.testing.prop`, — но он не описан ни в документации,
+ни в списке изменений 1.1. Пока надёжнее простой цикл.
+
+## Если внутри теста всё падает
+
+Утверждение, которое не выполнилось, — это ошибка, которую `TestSuite`
+ловит. Но бывают и настоящие аварии: выход за границу списка,
+сработавший `debug_assert`. Их не ловит никто:
+
+```mojo
+def last_three(data: List[Int]) -> List[Int]:
+    var out = List[Int]()
+    for i in range(len(data) - 3, len(data)):
+        out.append(data[i])
+    return out^
+```
+
+Для списка из двух элементов цикл начнётся с индекса `-1`. В Python
+`data[-1]` — законный последний элемент, и функция молча вернула бы
+ерунду. В Mojo 1.x отрицательных индексов нет, и программа
+останавливается:
+
+```text
+At: /home/you/test/test_tail.mojo:7:24: Assert Error: index -1 is out of bounds, valid range is 0 to 1
+mojo: error: execution crashed
+```
+
+Защита сработала, но у неё есть цена: **падает весь файл с тестами**.
+Отчёта нет вовсе — даже про тесты, которые успели пройти раньше, а тесты
+после упавшего не запускаются. Всё, что остаётся, — вывод `print`
+и строка `At:` с местом аварии.
+
+Что с этим делать:
+
+- ориентируйтесь на строку `At: файл:строка:столбец` — она указывает
+  точно на место;
+- чтобы узнать, какой тест виноват, соберите файл без оптимизаций
+  и с номерами строк и запустите бинарник — в стеке вызовов появятся
+  имена функций, включая имя теста:
+
+  ```bash
+  uv run mojo build -O0 -g1 -I src test/test_tail.mojo -o test-debug
+  ./test-debug
+  ```
+
+  ```text
+  #10 … test_tail::last_three(…) test_tail.mojo:7:24
+  #11 … test_tail::test_short() test_tail.mojo:16:28
+  ```
+
+  Без `-O0` функции встраиваются друг в друга, и имени теста в стеке
+  не будет;
+- гоняйте тесты с `-D ASSERT=all` — тогда срабатывают и ваши собственные
+  `debug_assert`, которые по умолчанию выключены. Уровни проверок подробно
+  разобраны в главе [«Ошибки»](/basics/errors/).
+
+```bash
+uv run mojo run -D ASSERT=all -I src test/test_money.mojo
+```
+
+## Какие тесты запускать
+
+Файл с `TestSuite` понимает три флага. Ставятся они **после** имени
+файла — это аргументы программы, а не компилятора:
+
+```bash
+uv run mojo run -I src test/test_money.mojo --only test_split_even test_split_nobody
+uv run mojo run -I src test/test_money.mojo --skip test_split_keeps_every_kopeck
+uv run mojo run -I src test/test_money.mojo --skip-all
+```
+
+- `--only` — только перечисленные тесты;
+- `--skip` — все, кроме перечисленных;
+- `--skip-all` — ничего не запускать, просто показать список.
+
+Имена перечисляются через пробел, а сами флаги не сочетаются — за раз
+можно указать только один. Пропущенные тесты помечаются в отчёте
+как `SKIP`. Опечатка в имени — ошибка, а не молчаливый пропуск:
+
+```text
+Unhandled exception caught during execution: explicitly allowed test not found in suite: test_nope
+```
+
+Отключить тест прямо в коде тоже можно — например, пока он сломан:
+
+```mojo
+from std.testing import TestSuite
+
+
+def test_split_keeps_every_kopeck() raises:
+    pass  # здесь настоящий тест
+
+
+def main() raises:
+    var suite = TestSuite.discover_tests[__functions_in_module()]()
+    suite.skip[test_split_keeps_every_kopeck]()
+    suite^.run()
+```
+
+`run()` забирает набор тестов себе, поэтому здесь нужна передача
+владения `^` — подробнее о ней в главе
+[«Копирование и перемещение»](/ownership/copy-move/). Такой пропуск
+действует всегда, даже если тест явно попросили через `--only`.
+
+## Всё вместе
+
+Код, который тестируем, лежит в `src`, тесты — в `test`:
+
+<FileTree>
+
+- pyproject.toml
+- uv.lock
+- src/
+  - money/
+    - \_\_init\_\_.mojo
+    - cents.mojo
+- test/
+  - test_money.mojo
+
+</FileTree>
+
+<Code code={moneyInit} lang="mojo" title="src/money/__init__.mojo" />
+
+<Code code={cents} lang="mojo" title="src/money/cents.mojo" />
+
+<Code code={testMoney} lang="mojo" title="test/test_money.mojo" />
+
+Запуск из корня проекта. Флаг `-I src` говорит компилятору, где искать
+пакет `money`:
+
+```bash
+uv run mojo run -I src test/test_money.mojo
+```
+
+{/* вывод-меняется */}
+<Result output={"Running 11 tests for /home/you/money/test/test_money.mojo \n    PASS [ 0.012 ] test_parse_whole_rubles\n    PASS [ 0.002 ] test_parse_with_kopecks\n    PASS [ 0.021 ] test_parse_rejects_one_digit\n    PASS [ 0.001 ] test_parse_rejects_negative\n    PASS [ 0.001 ] test_parse_rejects_negative_kopecks\n    PASS [ 0.003 ] test_parse_rejects_what_int_forgives\n    PASS [ 0.001 ] test_parse_rejects_overflow\n    PASS [ 0.010 ] test_split_even\n    PASS [ 0.001 ] test_split_with_remainder\n    PASS [ 0.004 ] test_split_rejects_bad_input\n    PASS [ 1.056 ] test_split_keeps_every_kopeck\n--------\nSummary [ 1.115 ] 11 tests run: 11 passed , 0 failed , 0 skipped"} />
+
+### Все файлы сразу и CI
+
+Файлов с тестами обычно несколько, а общего «запускателя» нет. Хватает
+цикла в shell — главное, не останавливаться на первом упавшем файле,
+но и не потерять его код возврата:
+
+```bash
+status=0
+for f in test/test_*.mojo; do
+    uv run mojo run -I src "$f" || status=1
+done
+exit $status
+```
+
+Тот же цикл в GitHub Actions — для проекта на `uv`, как в главе
+об установке:
+
+```yaml title=".github/workflows/tests.yml"
+name: Тесты
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Поставить зафиксированную версию Mojo
+        run: uv sync --locked
+
+      - name: Прогнать тесты
+        run: |
+          status=0
+          for f in test/test_*.mojo; do
+            uv run mojo run -D ASSERT=all -I src "$f" || status=1
+          done
+          exit $status
+```
+
+`uv sync --locked` ставит ровно ту версию Mojo, что записана
+в `uv.lock`: обновление компилятора не сломает вам CI внезапно — только
+когда вы сами обновите lock-файл. Цикл мы проверили локально в оболочке
+с теми же настройками, что у GitHub Actions (`bash -eo pipefail`),
+включая случай с упавшим файлом: остальные файлы всё равно выполняются,
+итоговый код — 1. Сам workflow в GitHub мы не запускали.
+
+## Отладка
+
+### Сначала — `print` и строка `At:`
+
+Самый быстрый инструмент по-прежнему `print`. Вывод из тестов появляется
+сразу, до отчёта `TestSuite`, — даже если потом всё упадёт.
+
+При аварии первая строка сообщения уже указывает место:
+`At: файл:строка:столбец`. Стек вызовов ниже неё без отладочной информации
+почти бесполезен — одни адреса. Если нужны имена функций, соберите
+программу с `-g1` и запустите бинарник отдельно:
+
+```bash
+uv run mojo build -O0 -g1 app.mojo -o app-debug
+./app-debug
+```
+
+Стек станет подписанным, но заодно покажет внутренности стандартной
+библиотеки. А чтобы в нём были видны ваши собственные функции, добавьте
+`-O0` — иначе оптимизатор встроит их друг в друга, как в примере
+с упавшим тестом выше.
+
+### Отладчик в командной строке
+
+`mojo debug` собирает файл без оптимизаций, с полной отладочной
+информацией, и запускает под LLDB — отладчиком, который идёт в комплекте
+с Mojo. Возьмём `split_bill` из начала главы и остановимся внутри цикла:
+
+```bash
+uv run mojo debug test_split.mojo
+```
+
+```text
+(lldb) breakpoint set -f test_split.mojo -l 10
+Breakpoint 1: no locations (pending).
+(lldb) run
+* thread #1, name = 'mojo', stop reason = breakpoint 1.1
+    frame #0: … test_split::split_bill(total=900, people=3, __result__=…) at test_split.mojo:10:34
+   7        var extra = total % people
+   8        var result = List[Int]()
+   9        for i in range(people):
+-> 10           result.append(share + (1 if i < extra else 0))
+(lldb) frame variable
+(__mlir_type.`!kgen.scalar<index>`) total = 900
+(__mlir_type.`!kgen.scalar<index>`) people = 3
+(__mlir_type.`!kgen.scalar<index>`) share = 300
+(__mlir_type.`!kgen.scalar<index>`) extra = 0
+(List) result = (size 0) {}
+(__mlir_type.`!kgen.scalar<index>`) i = 0
+(lldb) continue
+(lldb) frame variable i result
+(__mlir_type.`!kgen.scalar<index>`) i = 1
+(List) result = (size 1)[300] {
+  [0] = 300
+}
+```
+
+Первым выполняется `test_split_even`, поэтому остановка — на счёте
+900 копеек на троих. После `continue` цикл прошёл один круг: `i` стал
+равен 1, а в списке появилась первая доля.
+
+Предупреждение `no locations (pending)` при установке точки — нормально:
+программа ещё не собрана, и LLDB привяжет точку к коду после `run`.
+Непонятные числа в `__result__` в заголовке кадра — место под ещё
+не вычисленный результат функции, на них не смотрите.
+
+Главные команды:
+
+| Команда | Что делает |
+| --- | --- |
+| `breakpoint set -f файл -l строка` | точка останова |
+| `run` / `continue` | запустить / продолжить до следующей остановки |
+| `frame variable` | локальные переменные |
+| `bt` | стек вызовов |
+| `next` / `step` | шаг через вызов / внутрь вызова |
+| `quit` | выйти |
+
+Страшный тип `__mlir_type.…scalar<index>` — это просто `Int`: отладчик
+показывает его внутреннее представление. Значения при этом правильные.
+
+Аргументы для самой программы пишутся после имени файла:
+`mojo debug app.mojo --only test_split_even`.
+
+### `breakpoint()` в коде
+
+Точку останова можно поставить и прямо в коде — вызовом `breakpoint()`.
+Под `mojo debug` программа остановится на этом месте. Но, в отличие
+от Python, где `breakpoint()` открывает pdb, **без отладчика программа
+на нём просто падает**:
+
+```text
+mojo: error: execution crashed
+```
+
+Так что `breakpoint()` — строго временная мера. Забытый в коде,
+он уронит программу у пользователя.
+
+### В VS Code
+
+Графическая отладка — точки останова мышью, панель переменных — работает
+через расширение Mojo. Как её настроить, рассказано в главе
+[«VS Code»](/install/vscode/). Из терминала отладку в редакторе можно
+запустить командой `mojo debug --vscode app.mojo` — если VS Code
+с расширением уже открыт.
+
+<Quiz>
+  <QuizItem q="В старой статье тесты запускают командой mojo test. Как это делается в Mojo 1.1?">
+    Команды `mojo test` больше нет — её убрали в версии 0.25.7. В файле
+    с тестами пишут `main`, которая вызывает
+    `TestSuite.discover_tests[__functions_in_module()]().run()`, и запускают
+    файл обычным `mojo run`.
+  </QuizItem>
+  <QuizItem q="Тест объявлен как def test_total(): без raises. Что произойдёт?">
+    Файл скомпилируется, но при запуске `TestSuite` сообщит
+    `nonconforming signature` и не выполнит ни одного теста в файле.
+    Тестовая функция обязана быть `raises`, не принимать аргументов
+    и ничего не возвращать.
+  </QuizItem>
+  <QuizItem q="Почему тест с голым assert_raises() может пройти, хотя проверяемая логика сломана?">
+    `assert_raises()` без аргументов доволен любой ошибкой — например,
+    ошибкой разбора строки вместо ожидаемой проверки. Нужно указать
+    `contains=` с частью ожидаемого сообщения, тогда чужая ошибка
+    провалит тест.
+  </QuizItem>
+  <QuizItem q="Функция считает x * y - 1.0. На литералах тест даёт 0.0, а на данных из списка — 5.55e-17. Где ошибка?">
+    Ошибки нет. Литералы компилятор вычисляет сам, а для данных во время
+    работы сливает умножение и вычитание в инструкцию FMA без
+    промежуточного округления. Оба ответа законны, поэтому дробные числа
+    в тестах сравнивают через `assert_almost_equal`.
+  </QuizItem>
+  <QuizItem q="В одном из тестов выход за границу списка. Что покажет отчёт TestSuite?">
+    Ничего — отчёта не будет. Авария останавливает всю программу: теряются
+    и результаты уже прошедших тестов, и не запускаются следующие.
+    Останется только вывод `print` и строка `At:` с местом падения.
+  </QuizItem>
+  <QuizItem q="Можно ли оставить breakpoint() в коде, как в Python?">
+    Нет. Без отладчика программа на `breakpoint()` падает. Это инструмент
+    на время отладки, и перед коммитом его нужно убрать.
+  </QuizItem>
+</Quiz>

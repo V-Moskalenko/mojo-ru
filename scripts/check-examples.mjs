@@ -31,7 +31,7 @@ import {
   writeFileSync,
   unlinkSync,
 } from 'node:fs';
-import { join, extname, relative } from 'node:path';
+import { join, extname, relative, basename, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 
@@ -146,6 +146,32 @@ for (const file of collect(EXAMPLES, '.mojo')) {
   }
 
   checked++;
+
+  // Файл с тестами: вывод содержит время выполнения и потому каждый раз
+  // разный. Сверять его не с чем — достаточно, чтобы все тесты прошли.
+  // Пакет, который тестируется, лежит по соседству в ../src.
+  if (/^test_.*\.mojo$/.test(basename(file))) {
+    const src = join(dirname(file), '..', 'src');
+    // -D ASSERT=all: тесты гоняются и со всеми debug_assert, как советует глава.
+    const tested = runMojo(
+      file,
+      existsSync(src) ? ['run', '-D', 'ASSERT=all', '-I', src] : ['run', '-D', 'ASSERT=all']
+    );
+    if (!tested.ok) {
+      console.error(`✗ ${rel}: тесты не проходят`);
+      console.error(tested.stderr.trim());
+      failed++;
+      continue;
+    }
+    if (deprecation(tested)) {
+      console.error(`✗ ${rel}: устаревший API`);
+      console.error(deprecation(tested));
+      failed++;
+      continue;
+    }
+    console.log(`✓ ${rel} (тесты)`);
+    continue;
+  }
 
   if (!existsSync(expectedFile)) {
     console.error(`✗ ${rel}: нет файла с ожидаемым выводом`);
