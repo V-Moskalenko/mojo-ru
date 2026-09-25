@@ -8,6 +8,10 @@
  * 2. Полные примеры прямо из текста глав — все блоки ```mojo, содержащие
  *    `def main`, компилируются. Так код на сайте не может разойтись
  *    с реальностью, даже если его забыли вынести в examples/.
+ * 3. Фрагменты без `def main` — хотя бы разбираются.
+ *
+ * Везде предупреждение компилятора «deprecated» считается ошибкой: курс
+ * не должен учить тому, что уже помечено к удалению.
  *
  * Запуск локально (Linux, macOS или WSL с установленным Mojo):
  *   npm run examples:check
@@ -28,7 +32,7 @@ import {
   unlinkSync,
 } from 'node:fs';
 import { join, extname, relative } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 
 const ROOT = new URL('../', import.meta.url).pathname;
@@ -63,26 +67,39 @@ const norm = (s) =>
     .join('\n')
     .trim();
 
+/** Строки stderr, которые ни на что не влияют. */
+const quiet = (text) =>
+  String(text ?? '')
+    .split('\n')
+    // предупреждение про Crashpad появляется в контейнерах и ни на что не влияет
+    .filter((line) => !line.includes('Crashpad'))
+    .join('\n');
+
 /** Запускает mojo и возвращает { ok, stdout, stderr }. */
 function runMojo(file, args = []) {
-  try {
-    const stdout = execFileSync(MOJO, [...args, file], {
-      encoding: 'utf-8',
-      timeout: 300_000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return { ok: true, stdout, stderr: '' };
-  } catch (error) {
-    return {
-      ok: false,
-      stdout: String(error.stdout ?? ''),
-      // предупреждение про Crashpad появляется в контейнерах и ни на что не влияет
-      stderr: String(error.stderr ?? error.message)
-        .split('\n')
-        .filter((line) => !line.includes('Crashpad'))
-        .join('\n'),
-    };
-  }
+  const run = spawnSync(MOJO, [...args, file], {
+    encoding: 'utf-8',
+    timeout: 300_000,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return {
+    ok: run.status === 0,
+    stdout: String(run.stdout ?? ''),
+    stderr:
+      quiet(run.stderr) ||
+      String(run.error?.message ?? '') ||
+      (run.status === 0 ? '' : `код выхода ${run.status}, сигнал ${run.signal}`),
+  };
+}
+
+/**
+ * Код курса не должен учить устаревшему: если компилятор предупреждает,
+ * что конструкция deprecated, пример считается сломанным, даже когда
+ * он компилируется и печатает правильный ответ.
+ */
+function deprecation(result) {
+  const lines = result.stderr.split('\n').filter((line) => /deprecated/i.test(line));
+  return lines.length ? lines.join('\n') : null;
 }
 
 let failed = 0;
@@ -110,6 +127,12 @@ for (const file of collect(EXAMPLES, '.mojo')) {
       continue;
     }
     if (existsSync(so)) unlinkSync(so);
+    if (deprecation(built)) {
+      console.error(`✗ ${rel}: устаревший API`);
+      console.error(deprecation(built));
+      failed++;
+      continue;
+    }
     console.log(`✓ ${rel} (расширение Python, сборка)`);
     continue;
   }
@@ -134,6 +157,13 @@ for (const file of collect(EXAMPLES, '.mojo')) {
   if (!result.ok) {
     console.error(`✗ ${rel}: не компилируется или падает`);
     console.error(result.stderr.trim());
+    failed++;
+    continue;
+  }
+
+  if (deprecation(result)) {
+    console.error(`✗ ${rel}: устаревший API`);
+    console.error(deprecation(result));
     failed++;
     continue;
   }
@@ -192,6 +222,13 @@ for (const file of collect(DOCS, '.mdx')) {
     if (!result.ok) {
       console.error(`✗ ${rel} (блок кода #${index + 1}): не компилируется`);
       console.error(result.stderr.trim());
+      failed++;
+      continue;
+    }
+
+    if (deprecation(result)) {
+      console.error(`✗ ${rel} (блок кода #${index + 1}): устаревший API`);
+      console.error(deprecation(result));
       failed++;
       continue;
     }
@@ -267,6 +304,10 @@ for (const file of collect(DOCS, '.mdx')) {
     if (!result.ok && !NEEDS_CONTEXT.test(result.stderr)) {
       console.error(`✗ ${rel} (фрагмент #${index + 1}): не разбирается`);
       console.error(result.stderr.trim());
+      failed++;
+    } else if (deprecation(result)) {
+      console.error(`✗ ${rel} (фрагмент #${index + 1}): устаревший API`);
+      console.error(deprecation(result));
       failed++;
     }
   }

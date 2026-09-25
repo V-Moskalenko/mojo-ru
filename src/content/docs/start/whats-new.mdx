@@ -26,6 +26,10 @@ import QuizItem from '../../../components/QuizItem.astro';
 | `@parameter if` / `@parameter for` | предупреждение об устаревании | **ошибка** |
 | `@parameter` перед вложенной функцией | работал молча | предупреждение, замена — список захвата |
 | `run[f]()` из `std.benchmark` | единственная форма для замыканий | **удалена**, осталась `run(f)` |
+| `as_c_string_slice()` у `String` | работал молча | предупреждение, замена — `as_c_string_span()` |
+| `mojo package -o файл.mojopkg` | предупреждение об устаревании | **ошибка**: нужно расширение `.mojoc` |
+| файлы `.mojoc`, собранные 1.0 | — | **не загружаются**, пересоберите |
+| файлы `.mojopkg` при импорте | находились | **не ищутся**: `unable to locate module` |
 
 ## `InlineArray` удалён
 
@@ -92,10 +96,33 @@ var report = run(work, max_runtime_secs=0.3)
   4. `@parameter` перед вложенной функцией — убрать, дописав
      [список захвата](/performance/closures/).
   5. `run[f](...)` → `run(f, ...)`.
+  6. Пересоберите все свои `.mojoc` компилятором 1.1.
 
   Отдельно стоит прогнать сборку и посмотреть **предупреждения**: они
   показывают, что сломается в следующей версии.
 </Aside>
+
+## Предкомпилированные пакеты надо пересобрать
+
+Формат `.mojoc` привязан к точной версии компилятора, и обещание
+совместимости исходников на него не распространяется. Файл, собранный
+Mojo 1.0, версия 1.1 не загрузит:
+
+```text
+error: Mojo precompiled file is incompatible with the current version of the Mojo compiler. Precompiled file 'shapes.mojoc' version 1.0.0 is older than compiler version 1.1.0. To proceed, recreate the precompiled file with `mojo precompile`, or use the version of the compiler it was created with.
+```
+
+Лечится пересборкой: `mojo precompile пакет -o пакет.mojoc`. Старая
+команда `mojo package` в 1.1 ещё работает с предупреждением, но только
+если выходной файл называется `.mojoc` — расширение `.mojopkg` теперь
+ошибка:
+
+```text
+warning: 'package' is deprecated; use 'precompile' instead
+error: output path must have a '.mojoc' extension
+```
+
+Подробнее — в главе [Упаковка и распространение](/interop/packaging/).
 
 ## Что не изменилось
 
