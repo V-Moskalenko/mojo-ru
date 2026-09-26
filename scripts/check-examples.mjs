@@ -13,7 +13,9 @@
  * Программе из examples/ можно передать аргументы командной строки: они
  * лежат рядом в файле <имя>.args (через пробел, без кавычек), а запускается
  * программа из своего каталога. Файлы test_*.mojo считаются тестами:
- * им достаточно завершиться с кодом 0.
+ * им достаточно завершиться с кодом 0. Файлы bench_*.mojo — замеры:
+ * их вывод зависит от машины, поэтому он не сверяется; замер собирается,
+ * а если рядом есть .args — ещё и запускается на маленьких данных.
  *
  * Везде предупреждение компилятора «deprecated» считается ошибкой: курс
  * не должен учить тому, что уже помечено к удалению.
@@ -156,6 +158,45 @@ for (const file of collect(EXAMPLES, '.mojo')) {
   }
 
   checked++;
+
+  // Замер: печатает время, которое у каждой машины своё. Сверять нечего,
+  // а гонять долго — достаточно, чтобы он собирался.
+  if (/^bench_.*\.mojo$/.test(basename(file))) {
+    const exe = join(tmpdir(), `mojo-ru-bench-${process.pid}-${checked}`);
+    const built = runMojo(file, ['build', '-o', exe]);
+    if (existsSync(exe)) unlinkSync(exe);
+    if (!built.ok) {
+      console.error(`✗ ${rel}: замер не собирается`);
+      console.error(built.stderr.trim());
+      failed++;
+      continue;
+    }
+    if (deprecation(built)) {
+      console.error(`✗ ${rel}: устаревший API`);
+      console.error(deprecation(built));
+      failed++;
+      continue;
+    }
+    // Если рядом лежит <имя>.args, прогоняем замер на маленьких данных:
+    // вывод не сверяем, но падение во время работы поймаем.
+    const benchArgs = file.replace(/\.mojo$/, '.args');
+    if (existsSync(benchArgs)) {
+      const ran = runMojo(file, ['run'], {
+        programArgs: readFileSync(benchArgs, 'utf-8').trim().split(/\s+/).filter(Boolean),
+        cwd: dirname(file),
+      });
+      if (!ran.ok) {
+        console.error(`✗ ${rel}: замер падает при запуске`);
+        console.error(ran.stderr.trim());
+        failed++;
+        continue;
+      }
+      console.log(`✓ ${rel} (замер: сборка и пробный запуск)`);
+      continue;
+    }
+    console.log(`✓ ${rel} (замер, только сборка)`);
+    continue;
+  }
 
   // Файл с тестами: вывод содержит время выполнения и потому каждый раз
   // разный. Сверять его не с чем — достаточно, чтобы все тесты прошли.
