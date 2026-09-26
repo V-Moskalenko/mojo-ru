@@ -35,17 +35,17 @@ count = 5
 count += 1
 ```
 
-<Aside type="caution" title="Без `var` пока можно, но не нужно">
-  Присваивание без `var` при первом упоминании ещё работает, но компилятор
-  выдаёт предупреждение:
+<Aside type="caution" title="Без `var` — ошибка">
+  Присваивание без `var` при первом упоминании, как в Python, в Mojo 1.1
+  не компилируется:
 
   ```text
-  warning: implicit declaration of 'count' is deprecated;
-  add 'var' before the assignment target
+  error: implicit declaration of 'count' is not allowed; add 'var' to declare a new name
   ```
 
-  Сегодня это предупреждение, в следующих версиях станет ошибкой. Пишите
-  `var` сразу — переучиваться потом дороже.
+  В 1.0 это было предупреждением, в 1.1 стало ошибкой. В старых статьях
+  и примерах такой код встречается часто — добавьте `var` перед первым
+  присваиванием.
 </Aside>
 
 ## Тип фиксируется навсегда

@@ -152,10 +152,11 @@ var measurements: List[Float64] = [21.5, 23.0, 19.8, 24.2]
 перестанет работать:
 
 ```text
-warning: implicit declaration of 'left' is deprecated;
-add 'var' before the assignment target
+warning: 'as_c_string_slice' is deprecated, use 'as_c_string_span' instead
 ```
 
+Так и вышло с неявным объявлением переменных: в 1.0 строка `left = 1`
+без `var` давала только предупреждение, а в 1.1 это уже ошибка.
 Такие предупреждения — бесплатная страховка от будущих поломок. Чините
 их сразу, пока это одна строка, а не сотня.
 

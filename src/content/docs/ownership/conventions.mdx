@@ -51,12 +51,12 @@ def describe(value: Int):
   </Fragment>
 </CompilerError>
 
-<Aside type="note" title="`read` устарел, теперь `imm`">
+<Aside type="note" title="`read` убран, теперь `imm`">
   Конвенцию по умолчанию можно назвать явно. Раньше для этого писали
-  `read`, сейчас компилятор просит иначе:
+  `read`; в 1.0 это давало предупреждение, в 1.1 — уже ошибку:
 
   ```text
-  warning: 'read' is deprecated; use 'imm'
+  error: 'read' was removed; use 'imm'
   ```
 
   Писать `imm` каждый раз не нужно — это и так поведение по умолчанию.

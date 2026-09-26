@@ -68,7 +68,8 @@ def main():
 
 <Aside type="caution" title="Если вы видели `fn main()` — это устаревший код">
   До 2026 года в Mojo было два ключевых слова для функций: `def` и `fn`.
-  К версии 1.0 язык оставил только `def`, а `fn` объявлен устаревшим.
+  В 1.0 язык оставил только `def`, объявив `fn` устаревшим, а в 1.1
+  `fn` удалили совсем.
   Большинство статей и видео в интернете написаны до этого изменения —
   их код на Mojo не соберётся. Полный список таких ловушек мы собрали
   на странице [Устаревшие конструкции](/python-to-mojo/outdated/).
@@ -126,16 +127,14 @@ var count = 0          # тип выведен из значения
 count = 1              # это уже не объявление, а изменение значения
 ```
 
-Присваивание без `var` при первом упоминании пока работает, но компилятор
-на него ругается:
+Присваивание без `var` при первом упоминании, как в Python, в Mojo 1.1
+не компилируется:
 
 ```text
-warning: implicit declaration of 'count' is deprecated;
-add 'var' before the assignment target
+error: implicit declaration of 'count' is not allowed; add 'var' to declare a new name
 ```
 
-Сегодня это предупреждение, в следующих версиях станет ошибкой — так что
-привыкайте сразу писать `var`.
+Так что `var` перед первым присваиванием обязателен.
 
 <Aside type="note" title="`let` в Mojo больше нет">
   В ранних версиях языка была пара `let` / `var` — для неизменяемых
@@ -178,7 +177,7 @@ uv run mojo build temperature.mojo
   </Fragment>
 </CompilerError>
 
-<CompilerError msg="error: 'fn' is deprecated, use 'def' instead">
+<CompilerError msg="error: 'fn' has been removed; use 'def' instead">
   <Fragment slot="meaning">
     Вы используете ключевое слово `fn`, оставшееся от старых версий языка.
   </Fragment>
@@ -203,9 +202,9 @@ uv run mojo build temperature.mojo
     компилятором.
   </QuizItem>
   <QuizItem q="В чём разница между `var x = 0` и `x = 0` внутри функции?">
-    В области видимости. `var x` живёт до конца блока, в котором объявлен
-    (например, внутри `if`), а `x = 0` без `var` — до конца всей функции,
-    как в Python.
+    `var x = 0` объявляет новую переменную, а `x = 0` меняет значение уже
+    объявленной. Если `x` ещё не объявлена, `x = 0` в Mojo 1.1 — ошибка
+    компиляции: неявных объявлений, как в Python, больше нет.
   </QuizItem>
 </Quiz>
 

@@ -320,12 +320,12 @@ var f = lambda (x: Int) -> Int: x + 1
 
 ## 11. Переменные объявляются через `var`
 
-Присваивание без `var` пока работает, но компилятор предупреждает:
+Присваивание без `var`, как в Python, в Mojo 1.1 не компилируется:
 
-<CompilerError msg="warning: implicit declaration of 'x' is deprecated; add 'var' before the assignment target">
+<CompilerError msg="error: implicit declaration of 'x' is not allowed; add 'var' to declare a new name">
   <Fragment slot="meaning">
-    Неявное объявление переменных объявлено устаревшим. Сегодня это
-    предупреждение, в будущих версиях станет ошибкой.
+    Неявных объявлений переменных в Mojo больше нет. В 1.0 это было
+    предупреждением, в 1.1 стало ошибкой.
   </Fragment>
   <Fragment slot="fix">
     Пишите `var x = 1` при первом присваивании. Дальше в теле функции

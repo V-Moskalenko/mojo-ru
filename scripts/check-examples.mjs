@@ -1,7 +1,7 @@
 /**
  * Проверка кода курса на настоящем компиляторе Mojo.
  *
- * Две части:
+ * Три части:
  *
  * 1. Файлы `examples/**\/*.mojo` — запускаются, вывод сверяется с лежащим
  *    рядом файлом `<имя>.out`.
@@ -9,6 +9,11 @@
  *    `def main`, компилируются. Так код на сайте не может разойтись
  *    с реальностью, даже если его забыли вынести в examples/.
  * 3. Фрагменты без `def main` — хотя бы разбираются.
+ *
+ * Программе из examples/ можно передать аргументы командной строки: они
+ * лежат рядом в файле <имя>.args (через пробел, без кавычек), а запускается
+ * программа из своего каталога. Файлы test_*.mojo считаются тестами:
+ * им достаточно завершиться с кодом 0.
  *
  * Везде предупреждение компилятора «deprecated» считается ошибкой: курс
  * не должен учить тому, что уже помечено к удалению.
@@ -75,9 +80,14 @@ const quiet = (text) =>
     .filter((line) => !line.includes('Crashpad'))
     .join('\n');
 
-/** Запускает mojo и возвращает { ok, stdout, stderr }. */
-function runMojo(file, args = []) {
-  const run = spawnSync(MOJO, [...args, file], {
+/**
+ * Запускает mojo и возвращает { ok, stdout, stderr }.
+ * `args` — флаги компилятора (до имени файла), `programArgs` — аргументы
+ * самой программы (после имени файла), `cwd` — рабочий каталог.
+ */
+function runMojo(file, args = [], { programArgs = [], cwd } = {}) {
+  const run = spawnSync(MOJO, [...args, file, ...programArgs], {
+    cwd,
     encoding: 'utf-8',
     timeout: 300_000,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -179,7 +189,15 @@ for (const file of collect(EXAMPLES, '.mojo')) {
     continue;
   }
 
-  const result = runMojo(file);
+  // Программе нужны аргументы командной строки? Они лежат рядом в <имя>.args,
+  // а запускается она из своего каталога, чтобы находить свои входные файлы.
+  const argsFile = file.replace(/\.mojo$/, '.args');
+  const result = existsSync(argsFile)
+    ? runMojo(file, ['run'], {
+        programArgs: readFileSync(argsFile, 'utf-8').trim().split(/\s+/).filter(Boolean),
+        cwd: dirname(file),
+      })
+    : runMojo(file);
   if (!result.ok) {
     console.error(`✗ ${rel}: не компилируется или падает`);
     console.error(result.stderr.trim());

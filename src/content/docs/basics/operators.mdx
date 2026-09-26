@@ -137,16 +137,17 @@ def main():
 результат нужен и в условии, и в теле.
 
 <Aside type="caution" title="Переменную для «моржа» объявляйте заранее">
-  Если написать `if (count := ...)` без предварительного `var count: Int`,
-  код соберётся, но компилятор предупредит:
+  Без предварительного `var count: Int` строка `if (count := ...)`
+  в Mojo 1.1 не компилируется. Причём сообщение сбивает с толку:
 
   ```text
-  warning: implicit declaration of 'count' is deprecated;
-  declare it with 'var' in the function body
+  error: use of unknown declaration 'count'; did you mean to import it from 'std.itertools'?
   ```
 
-  Причина та же, что и с обычными переменными: неявное объявление
-  в Mojo устарело.
+  Подсказка про `std.itertools` появилась лишь потому, что там есть функция
+  `count`; для другого имени будет просто `use of unknown declaration`.
+  Причина та же, что и с обычными переменными: неявных объявлений в Mojo
+  больше нет — в 1.0 это было предупреждением, в 1.1 стало ошибкой.
 </Aside>
 
 ## Свои операторы для своих типов
