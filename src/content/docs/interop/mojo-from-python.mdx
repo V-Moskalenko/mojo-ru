@@ -185,7 +185,7 @@ struct Person(Movable, Writable):
 
     @staticmethod
     def py_init(out self: Person, args: PythonObject, kwargs: PythonObject) raises:
-        self = Self(String(args[0]), Int(py=args[1]))
+        self = Self(String(py=args[0]), Int(py=args[1]))
 
     def write_to[W: Writer](self, mut writer: W):
         writer.write("Person(", self.name, ", ", self.age, ")")
