@@ -1,5 +1,5 @@
 /** Версия Mojo, на которой проверены примеры сайта по умолчанию. */
-export const MOJO_VERSION = '1.0.0';
+export const MOJO_VERSION = '1.1.0';
 
 /** Сайт проекта. */
 export const SITE_URL = 'https://mojo-lang.ru';

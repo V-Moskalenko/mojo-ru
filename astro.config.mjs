@@ -126,7 +126,7 @@ const mojoGrammar = JSON.parse(
 );
 
 /** Версия Mojo, на которой проверены все примеры сайта. */
-export const MOJO_VERSION = '1.0.0';
+export const MOJO_VERSION = '1.1.0';
 
 export default defineConfig({
   site: SITE,
@@ -189,9 +189,9 @@ export default defineConfig({
     }),
     starlight({
       title: 'Mojo по-русски',
-      tagline: 'Полный курс по языку Mojo 1.0 на русском языке',
+      tagline: 'Полный курс по языку Mojo на русском языке',
       description:
-        'Бесплатный учебник по языку программирования Mojo 1.0 на русском языке: установка на Windows через WSL, настройка VS Code, основы синтаксиса, владение значениями, SIMD и практические проекты.',
+        'Бесплатный учебник по языку программирования Mojo на русском языке: установка на Windows через WSL, настройка VS Code, основы синтаксиса, владение значениями, SIMD и практические проекты.',
       logo: {
         src: './src/assets/logo.svg',
         alt: 'Mojo по-русски',

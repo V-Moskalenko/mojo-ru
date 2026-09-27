@@ -35,14 +35,14 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" v
         letter-spacing="-2" fill="url(#title)">Mojo по-русски</text>
 
   <text x="312" y="320" font-family="Inter, Arial, sans-serif" font-size="34" fill="#C6BFB9">
-    Полный курс по языку Mojo 1.0 на русском языке
+    Полный курс по языку Mojo на русском языке
   </text>
 
   <g transform="translate(312, 380)">
-    <rect x="0" y="0" width="196" height="44" rx="22" fill="#2A2521" stroke="#433D38"/>
-    <text x="24" y="29" font-family="Inter, Arial, sans-serif" font-size="20" fill="#FF9A5C">Mojo 1.0 · 2026</text>
-    <rect x="216" y="0" width="270" height="44" rx="22" fill="#2A2521" stroke="#433D38"/>
-    <text x="240" y="29" font-family="Inter, Arial, sans-serif" font-size="20" fill="#C6BFB9">Windows · WSL · VS Code</text>
+    <rect x="0" y="0" width="316" height="44" rx="22" fill="#2A2521" stroke="#433D38"/>
+    <text x="24" y="29" font-family="Inter, Arial, sans-serif" font-size="20" fill="#FF9A5C">Код проверен компилятором</text>
+    <rect x="336" y="0" width="288" height="44" rx="22" fill="#2A2521" stroke="#433D38"/>
+    <text x="360" y="29" font-family="Inter, Arial, sans-serif" font-size="20" fill="#C6BFB9">Windows · WSL · VS Code</text>
   </g>
 
   <text x="312" y="500" font-family="Inter, Arial, sans-serif" font-size="24" fill="#9A918A">
