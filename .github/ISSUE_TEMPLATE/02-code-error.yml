@@ -14,7 +14,7 @@ body:
     id: version
     attributes:
       label: Версия Mojo
-      description: Вывод команды `mojo --version`
+      description: Вывод команды `uv run mojo --version`
       placeholder: '1.0.0'
     validations:
       required: true
