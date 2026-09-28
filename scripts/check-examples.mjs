@@ -10,6 +10,10 @@
  *    с реальностью, даже если его забыли вынести в examples/.
  * 3. Фрагменты без `def main` — хотя бы разбираются.
  * 4. Программы для видеокарты — ещё и собираются под GPU NVIDIA и AMD.
+ * 5. Примеры ошибок (`examples/reference/compiler-errors`) — наоборот,
+ *    обязаны упасть, и именно с тем сообщением, что записано в первой
+ *    строке файла: `# ожидается: <текст>`. Так справочник ошибок на сайте
+ *    не устареет: если Mojo поменяет формулировку, проверка это заметит.
  *    Видеокарты у CI нет, поэтому в шагах 1–2 ветка
  *    `comptime if has_accelerator()` для GPU только проверяется на типы,
  *    а собирается и запускается ветка для процессора. Флаг
@@ -123,6 +127,11 @@ function deprecation(result) {
 let failed = 0;
 let checked = 0;
 
+/** Первая строка примера ошибки: `# ожидается: <текст сообщения>`. */
+const EXPECT_PREFIX = '# ожидается: ';
+/** Все ожидаемые сообщения — для сверки со справочником ошибок. */
+const expectedErrors = [];
+
 // --- 1. Примеры-файлы: компилируются, запускаются, вывод сверяется ---------
 
 for (const file of collect(EXAMPLES, '.mojo')) {
@@ -130,6 +139,28 @@ for (const file of collect(EXAMPLES, '.mojo')) {
   const expectedFile = file.replace(/\.mojo$/, '.out');
 
   const source = readFileSync(file, 'utf-8');
+
+  // Пример ошибки: программа обязана НЕ сработать, а сообщение компилятора
+  // (или ошибка при запуске) — содержать текст из первой строки.
+  if (source.startsWith(EXPECT_PREFIX)) {
+    checked++;
+    const expected = source.split('\n')[0].slice(EXPECT_PREFIX.length).trim();
+    expectedErrors.push({ rel, expected });
+    const result = runMojo(file, [], { cwd: dirname(file) });
+    const output = `${result.stdout}\n${result.stderr}`;
+    if (result.ok) {
+      console.error(`✗ ${rel}: должен был упасть, а отработал без ошибки`);
+      failed++;
+    } else if (!output.includes(expected)) {
+      console.error(`✗ ${rel}: сообщение об ошибке изменилось`);
+      console.error('  ожидалось:', expected);
+      console.error('  получено: ', result.stderr.trim().split('\n').slice(0, 6).join('\n'));
+      failed++;
+    } else {
+      console.log(`✓ ${rel} (ошибка воспроизводится)`);
+    }
+    continue;
+  }
 
   // Модуль расширения для Python: точки входа main у него нет, зато есть
   // PyInit_. Запустить нельзя, но собрать в разделяемую библиотеку можно —
@@ -466,6 +497,33 @@ for (const file of collect(DOCS, '.mdx')) {
     }
     console.log(`✓ ${rel} (блок с GPU #${index + 1}, сборка под GPU)`);
   }
+}
+
+// --- 5. Справочник ошибок сверяется с примерами ---------------------------
+//
+// Каждое сообщение на странице reference/compiler-errors записано строкой
+// вида **`` текст ``** и должно подтверждаться примером из шага 1, а каждый
+// пример — встречаться на странице. Иначе справочник и проверка разойдутся.
+
+const ERRORS_PAGE = join(DOCS, 'reference/compiler-errors.mdx');
+if (existsSync(ERRORS_PAGE)) {
+  const onPage = [...readFileSync(ERRORS_PAGE, 'utf-8').matchAll(/^\*\*`` (.+?) ``\*\*$/gm)].map(
+    (match) => match[1]
+  );
+  for (const message of onPage) {
+    checked++;
+    if (!expectedErrors.some(({ expected }) => message.includes(expected))) {
+      console.error(`✗ reference/compiler-errors.mdx: нет примера для «${message}»`);
+      failed++;
+    }
+  }
+  for (const { rel, expected } of expectedErrors) {
+    if (!onPage.some((message) => message.includes(expected))) {
+      console.error(`✗ ${rel}: ошибки «${expected}» нет в справочнике`);
+      failed++;
+    }
+  }
+  console.log(`✓ reference/compiler-errors.mdx: ${onPage.length} сообщений сверено с примерами`);
 }
 
 console.log(`\nПроверено: ${checked}, ошибок: ${failed}`);

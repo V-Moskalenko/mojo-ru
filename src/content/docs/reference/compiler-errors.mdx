@@ -1,31 +1,371 @@
 ---
 title: Ошибки компилятора
-description: Справочник сообщений об ошибках Mojo с переводом и решениями.
+description: "Справочник сообщений об ошибках Mojo 1.1: дословный текст, что он значит по-русски и как исправить. Каждое сообщение воспроизводится примером и перепроверяется на настоящем компиляторе."
 sidebar:
   order: 3
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.1.0
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import Result from '../../../components/Result.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+Здесь собраны сообщения, которые чаще всего видит начинающий. Текст
+каждой ошибки приведён дословно — ищите его поиском по сайту или
+через Ctrl+F. Имена в сообщениях (`'x'`, `'Point'`, `'bump'`) у вас
+будут свои.
+
+<Aside type="tip" title="Сообщения не устаревают молча">
+  Для каждой ошибки на этой странице в репозитории курса лежит маленькая
+  программа, которая её вызывает: папка
+  [`examples/reference/compiler-errors`](https://github.com/V-Moskalenko/mojo-ru/tree/main/examples/reference/compiler-errors).
+  Проверка курса запускает их все и сверяет текст. Если новая версия Mojo
+  изменит формулировку, мы узнаем об этом первыми.
 </Aside>
 
-## Что будет в этой главе
+## Как читать сообщение
 
-- Ошибки синтаксиса
-- Ошибки типов
-- Ошибки владения
-- Ошибки этапа компиляции
+Mojo печатает не одну строку, а несколько: сначала `error:` с местом
+в файле, потом строки `note:` с подробностями. Как в них разобраться,
+подробно показано в главе
+[«Как читать ошибки компилятора»](/python-to-mojo/errors/). Коротко:
 
-## Хотите ускорить
+- **Первая строка `error:`** почти всегда и есть ответ. Номер строки
+  и столбца после имени файла показывают, где искать.
+- **`error: function instantiation failed`** — не диагноз, а заголовок.
+  Настоящая причина ниже, в строке `note: constraint failed: …`. Такие
+  сообщения в справочнике приведены по строке `note:`.
+- **Ошибок несколько?** Исправляйте первую и собирайте заново:
+  следующие часто оказываются её последствиями.
 
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+## Объявления и синтаксис
+
+**`` error: implicit declaration of 'x' is not allowed; add 'var' to declare a new name ``**
+
+Новое имя без `var`. Пишите `var x = 5`. Дальше менять значение можно
+уже без `var`: `x = 6`. → [Переменные](/basics/variables/)
+
+**`` error: use of uninitialized value 'x' ``**
+
+Переменную объявили, но до чтения так и не присвоили ей значение. Или
+значение из неё уже забрали через `^` — см. раздел
+[«Владение и копирование»](#владение-и-копирование).
+→ [Переменные](/basics/variables/)
+
+**`` error: use of unknown declaration 'message' ``**
+
+Такого имени нет: опечатка, забытый импорт или переменная, объявленная
+внутри блока `if` или цикла, — в отличие от Python, после блока её
+уже нет. → [Переменные](/basics/variables/)
+
+**`` error: use of unknown declaration 'Python'; did you mean to import it from 'std.python'? Add 'from std.python import Python' ``**
+
+То же самое, но компилятор знает, где имя лежит, и подсказывает импорт
+целиком. Скопируйте его в начало файла.
+→ [Вызов Python из Mojo](/interop/python-from-mojo/)
+
+**`` error: 'fn' has been removed; use 'def' instead ``**
+
+Код из старой статьи. Функции теперь объявляются только через `def`.
+→ [Устаревшие конструкции](/python-to-mojo/outdated/)
+
+**`` error: expressions must not appear at file scope; move this into a function body ``**
+
+Код на верхнем уровне файла, как в скрипте на Python. Исполняемый код
+живёт в функциях, точка входа — `def main()`.
+→ [Что изменилось](/python-to-mojo/different/)
+
+**`` error: argument type must be specified ``**
+
+У аргумента функции нет типа. Пишите `def add(a: Int, b: Int) -> Int`.
+→ [Что изменилось](/python-to-mojo/different/)
+
+**`` error: classes are not supported yet ``**
+
+`class` в Mojo нет. Используйте `struct`: поля объявляются заранее
+через `var`. → [Структуры](/basics/structs/)
+
+**`` error: unparenthesized lambda arguments are not supported; write them in parentheses, with types, e.g. `lambda (x: Int, y: Int) -> Int: x + y` ``**
+
+Аргументы лямбды берутся в скобки и получают типы:
+`lambda (x: Int) -> Int: x + 1`. → [Замыкания и лямбды](/performance/closures/)
+
+**`` error: redefinition of function 'show' with identical signature ``**
+
+Две функции с одним именем и одинаковыми типами аргументов. Перегрузка
+возможна, только если сигнатуры различаются: типами или числом
+аргументов. Разных имён аргументов для этого мало. → [Функции](/basics/functions/)
+
+**`` error: unable to locate module 'shapes' ``**
+
+Компилятор не нашёл модуль. Модуль ищется рядом с запускаемым файлом
+(не в текущей папке терминала!) и в путях из `-I`. Модуль из вложенной
+папки импортируется через точку: `from shapes.circle import Circle`.
+→ [Модули и пакеты](/basics/modules/)
+
+**`` error: module does not define a `main` function ``**
+
+Вы запускаете файл-модуль, в котором нет точки входа. Запускайте
+программу, которая его импортирует. `mojo build` пишет то же самое
+другими словами: `module does not contain a 'main' function`.
+→ [Модули и пакеты](/basics/modules/)
+
+## Типы и преобразования
+
+**`` error: cannot implicitly convert 'Int' value to 'Int64' ``**
+
+Числовые типы сами друг в друга не переходят: даже `Int` и `Int64` —
+разные типы. Преобразуйте явно: `Int64(x)`. → [Система типов](/basics/types/)
+
+**`` error: invalid call to '__add__': value passed to 'rhs' cannot be converted from 'Int' to 'Float64' ``**
+
+То же для арифметики: `Float64 + Int` не складывается. Пишите
+`price + Float64(count)`. `__add__` — это метод, который стоит
+за оператором `+`. → [Что изменилось](/python-to-mojo/different/)
+
+**`` error: cannot implicitly convert 'StringLiteral["text"]' value to 'Int' ``**
+
+Переменная получила тип при объявлении и сменить его не может. Нужна
+другая переменная. Если в литерале кириллица, компилятор покажет её
+байтами: `StringLiteral["\D1\82\D0\B5..."]`.
+→ [Переменные](/basics/variables/)
+
+**`` error: `len(String/StringSlice)` is not supported because Mojo strings are UTF-8 encoded, so a single length is ambiguous: … ``**
+
+Скажите, что считать: `s.byte_length()` — байты,
+`len(s.codepoints())` — символы, как `len` в Python,
+`len(s.graphemes())` — видимые знаки. → [Строки и Unicode](/basics/strings/)
+
+**`` error: String does not support direct positional slicing like `s[a:b]` because Mojo strings are UTF-8 encoded, … ``**
+
+Срез тоже требует уточнения: `s[byte=a:b]` — по байтам,
+`s[codepoint=a:b]` — по символам. → [Строки и Unicode](/basics/strings/)
+
+**`` note: constraint failed: negative indexing is not supported, use e.g. `x[len(x) - 1]` ``**
+
+Отрицательных индексов нет. Последний элемент — `xs[len(xs) - 1]`.
+→ [Что изменилось](/python-to-mojo/different/)
+
+**`` error: 'Point' value has no attribute 'z' ``**
+
+У типа нет такого поля или метода. Поля структуры фиксированы
+при компиляции, добавить новое на ходу, как в Python, нельзя.
+→ [Структуры](/basics/structs/)
+
+**`` error: 'Array[Int, Int(3)]' value has no attribute 'append' ``**
+
+Список без аннотации — `var nums = [3, 1, 2]` — стал `Array`
+фиксированной длины, а не `List`. Укажите тип:
+`var nums: List[Int] = [3, 1, 2]`. → [Шпаргалка](/reference/cheatsheet/#коллекции)
+
+**`` note: constraint failed: Strict inequality is only defined for `Scalar`s; did you mean to use `SIMD.gt(...)`? ``**
+
+Операторы `<` и `>` работают только для одного числа. Вектор сравнивают
+поэлементно методами `gt`, `lt`, `ge`, `le`. → [SIMD с нуля](/performance/simd/)
+
+## Функции и аргументы
+
+**`` error: expression must be mutable for in-place operator destination ``**
+
+Функция меняет аргумент, а он передан только для чтения — так по
+умолчанию. Объявите аргумент `mut`: `def bump(mut counter: Int)`.
+→ [Конвенции передачи аргументов](/ownership/conventions/)
+
+**`` error: invalid call to 'bump': value passed to mutable argument 'counter' must be mutable ``**
+
+Обратная ситуация: аргумент `mut`, а передано то, что менять нельзя, —
+например, литерал `bump(5)`. Передайте переменную.
+→ [Конвенции передачи аргументов](/ownership/conventions/)
+
+**`` error: 'mut' arguments must not have defaults ``**
+
+У `mut`-аргумента не бывает значения по умолчанию: менять нужно
+переменную вызывающего кода, а её по умолчанию нет.
+→ [Функции](/basics/functions/)
+
+**`` error: function may not have multiple 'out' arguments ``**
+
+Аргумент `out` у функции может быть только один: это и есть её
+результат. Несколько значений возвращайте кортежем.
+→ [Конвенции передачи аргументов](/ownership/conventions/)
+
+**`` error: functions must not declare both an 'out' argument and a return type ``**
+
+`out`-аргумент уже задаёт результат. Оставьте что-то одно: `out`
+или `-> Тип`. → [Конвенции передачи аргументов](/ownership/conventions/)
+
+**`` error: Could not infer capture convention of the captured value k ``**
+
+Вложенная `def` использует внешнюю переменную, а список захвата
+не указан. Добавьте его после скобок с аргументами:
+`def times(x: Int) {imm k} -> Int:`.
+→ [Замыкания и лямбды](/performance/closures/)
+
+## Исключения
+
+**`` error: cannot call function that may raise in a context that cannot raise ``**
+
+Вызвана функция с `raises` — например, `Int(строка)` или
+`словарь[ключ]` — из функции без `raises`. Либо пометьте вызывающую
+функцию `raises`, либо оберните вызов в `try … except`.
+→ [Обработка ошибок](/basics/errors/)
+
+**`` error: 'raise' requires a surrounding 'try' block or the enclosing function to declare 'raises' ``**
+
+То же для самого `raise`: функция, которая бросает ошибку, должна быть
+помечена `raises`. → [Обработка ошибок](/basics/errors/)
+
+## Владение и копирование
+
+**`` error: value of type 'List[Int]' cannot be implicitly copied, it does not conform to 'ImplicitlyCopyable' ``**
+
+`var b = a` для списка не компилируется: копия может быть дорогой,
+и Mojo не делает её молча. Пишите `a.copy()`, если нужна копия, или `a^`,
+чтобы передать владение. → [Семантика значений](/ownership/value-semantics/)
+
+**`` error: use of uninitialized value 'a' ``**
+
+После `a^` значение ушло к новому владельцу, и в `a` его больше нет.
+Нужна копия — пишите `a.copy()` вместо `a^`.
+→ [Копирование и перемещение](/ownership/copy-move/)
+
+**`` error: 'Connection' value has no attribute 'copy' ``**
+
+Тип не копируется вовсе. Добавьте трейт `Copyable` в объявление
+структуры, если копия имеет смысл, или передавайте владение через `^`.
+→ [Копирование и перемещение](/ownership/copy-move/)
+
+**`` error: cannot synthesize implicit copy constructor because field 'items' has non-implicitly-copyable type 'List[Int]' ``**
+
+Структура объявлена `ImplicitlyCopyable`, а одно из её полей нельзя
+скопировать неявно. Объявите структуру просто `Copyable` — тогда копия будет
+явной, через `.copy()`. → [Семантика значений](/ownership/value-semantics/)
+
+**`` error: aliasing values passed mutably to 'x' argument and passed mutably to 'y' argument in 'bump' call ``**
+
+Одна и та же переменная передана в два `mut`-аргумента сразу.
+Две изменяемые ссылки на одно значение Mojo запрещает.
+→ [Сравнение с Rust и C++](/ownership/vs-rust/)
+
+## Структуры и трейты
+
+**`` error: 'Square' does not implement all requirements for 'Shape' ``**
+
+Структура объявила трейт, но не реализовала все его методы. В строках
+`note:` ниже компилятор перечислит, каких не хватает.
+→ [Трейты и обобщённый код](/meta/traits/)
+
+**`` error: invalid call to 'report': value passed to 's' cannot be converted from 'Rock' to 'T', argument type 'Rock' does not conform to trait 'Shape' ``**
+
+Обобщённая функция требует трейт, а тип его не объявил. Добавьте трейт
+в список после имени структуры: `struct Rock(Shape)` — и реализуйте его
+методы. → [Трейты и обобщённый код](/meta/traits/)
+
+**`` error: unqualified access to struct parameter 'T'; use 'Self.T' instead ``**
+
+Внутри структуры к её параметрам обращаются через `Self`:
+`var item: Self.T`. Следом компилятор может потребовать, чтобы значения
+`T` умели уничтожаться: `field 'item' has non-'Deinitable' type 'T'`.
+Добавьте трейт в ограничение: `struct Box[T: Copyable & Deinitable]`.
+→ [Структуры](/basics/structs/)
+
+## Этап компиляции
+
+**`` error: cannot use a dynamic value in a parameter list ``**
+
+В квадратные скобки передано значение, известное только при запуске.
+Параметры должны быть известны при сборке: литерал или `comptime`.
+→ [Введение в метапрограммирование](/meta/intro/)
+
+**`` error: cannot call raising function in comptime initializer ``**
+
+На этапе сборки нельзя вызывать функции с `raises`: обрабатывать
+исключение некому. → [Вычисления на этапе компиляции](/meta/comptime/)
+
+**`` error: cannot materialize comptime value of type 'Array[Int, Int(4)]' to runtime because it is not 'ImplicitlyCopyable' ``**
+
+Значение этапа сборки переносится в программу явно:
+`var table = materialize[TABLE]()`.
+→ [Вычисления на этапе компиляции](/meta/comptime/)
+
+**`` error: invalid call to 'pow2': violated constraint ``**
+
+Условие `where` проверено и оказалось ложным: негодное значение
+параметра. Исправляйте вызов. → [Ограничения](/meta/constraints/)
+
+**`` error: invalid call to 'half': lacking evidence to prove correctness ``**
+
+Условие `where` компилятор не смог проверить: в нём операция, которую
+он не вычисляет символически, — `%`, `//`, `**` или вызов функции.
+Перенесите проверку в `comptime assert`. → [Ограничения](/meta/constraints/)
+
+**`` note: constraint failed: число должно быть чётным ``**
+
+Сработал `comptime assert` — в сообщении ваш собственный текст.
+→ [Вычисления на этапе компиляции](/meta/comptime/)
+
+**`` error: invalid call to 'dot': value passed to 'other' cannot be converted from 'Vec[Int(2)]' to 'Vec[Int(3)]' ``**
+
+`Vec[2]` и `Vec[3]` — разные типы: параметр входит в тип. Ошибка
+в размерах поймана при сборке, а не при запуске.
+→ [Параметризация](/meta/parameters/)
+
+## Ошибки при запуске
+
+Эти программы компилируются, но падают во время работы.
+
+**`` Unhandled exception caught during execution: String is not convertible to integer with base 10: 'abc' ``**
+
+`Int("abc")` бросил исключение, и его никто не поймал. Оберните
+разбор в `try … except`. → [Обработка ошибок](/basics/errors/)
+
+**`` At: …: Assert Error: index 5 is out of bounds, valid range is 0 to 2 ``**
+
+Индекс за пределами списка. Проверка границ включена по умолчанию,
+и программа останавливается сразу, с номером строки. После строки `At:`
+Mojo допишет `execution crashed`. → [Обработка ошибок](/basics/errors/)
+
+**`` Unhandled exception caught during execution: DictKeyError[String]() ``**
+
+В словаре нет такого ключа. Проверьте заранее — `if key in d` —
+или возьмите значение с запасным вариантом: `d.get(key, 0)`.
+→ [Шпаргалка](/reference/cheatsheet/#коллекции)
+
+**`` ABORT: …: `Optional.value()` called on empty `Optional`. Consider using `if optional:` to check whether the `Optional` is empty before calling `.value()`, … ``**
+
+`value()` у пустого `Optional`. Проверяйте `if maybe:` перед чтением
+или используйте `maybe.or_else(0)`. → [Обработка ошибок](/basics/errors/)
+
+**`` error: execution crashed ``**
+
+Программа упала без сообщения об исключении. Если выше нет строки
+`At:` с местом ошибки, частая причина — деление целого на ноль
+оператором `/`. Чтобы найти место, соберите программу с отладочной
+информацией — `mojo build -O0 -g1 app.mojo -o app-debug` — и запустите
+её. → [Тестирование и отладка](/interop/testing/)
+
+<Aside type="caution" title="`//` и `%` на ноль не падают">
+  А вот `//` и `%` у целых на ноль **не падают**, а молча возвращают 0.
+  Так они написаны в стандартной библиотеке намеренно. Проверяйте
+  делитель сами:
+
+```mojo
+from std.sys import argv
+
+
+def main():
+    var b = len(argv()) - 1  # без аргументов b == 0
+    print(7 // b, 7 % b)
+```
+
+<Result output={"0 0"} />
+
+У `Float64` деление на ноль даёт `inf` или `nan`, как и положено по
+стандарту IEEE 754.
+</Aside>
+
+## Установка, окружение, видеокарта
+
+Ошибки установки — `mojo: command not found`, `GLIBC_2.34' not found`,
+`Illegal instruction`, проблемы WSL — собраны в главе
+[«Диагностика проблем»](/install/troubleshooting/). Ошибки программ
+для видеокарты — в главе [«Первое знакомство с GPU»](/projects/gpu-intro/#типичные-ошибки).
