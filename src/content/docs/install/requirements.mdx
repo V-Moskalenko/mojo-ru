@@ -121,9 +121,12 @@ sysctl -n machdep.cpu.brand_string
 Если планируете считать на GPU, поддерживаются:
 
 - **NVIDIA** — драйвер 580 и новее: B200, H100, A100, L4, T4, а также
-  игровые RTX;
+  игровые GeForce RTX 20xx и новее;
 - **AMD** — драйвер 6.3.3 и новее: MI355X, MI300X, MI250X и часть Radeon RX;
 - **Apple** — чипы M1–M5 на macOS Sequoia 15+ с Xcode 16+.
+
+Под WSL драйвер NVIDIA ставится в Windows, а не внутрь Linux. Подробности
+и полный список — в главе [«Первое знакомство с GPU»](/projects/gpu-intro/).
 
 ## Что дальше
 

@@ -9,6 +9,12 @@
  *    `def main`, компилируются. Так код на сайте не может разойтись
  *    с реальностью, даже если его забыли вынести в examples/.
  * 3. Фрагменты без `def main` — хотя бы разбираются.
+ * 4. Программы для видеокарты — ещё и собираются под GPU NVIDIA и AMD.
+ *    Видеокарты у CI нет, поэтому в шагах 1–2 ветка
+ *    `comptime if has_accelerator()` для GPU только проверяется на типы,
+ *    а собирается и запускается ветка для процессора. Флаг
+ *    `--target-accelerator` заставляет компилятор собрать и ветку для GPU,
+ *    вместе с ядрами, — запустить её нельзя, но собраться она обязана.
  *
  * Программе из examples/ можно передать аргументы командной строки: они
  * лежат рядом в файле <имя>.args (через пробел, без кавычек), а запускается
@@ -395,6 +401,70 @@ for (const file of collect(DOCS, '.mdx')) {
       console.error(deprecation(result));
       failed++;
     }
+  }
+}
+
+// --- 4. Ядра GPU: сборка под видеокарты, которых у CI нет ----------------
+//
+// Без видеокарты `has_accelerator()` ложно, и ветку с ядрами компилятор
+// только проверяет на типы, но не собирает. Проверки, зависящие от
+// видеокарты (можно ли передать аргумент в ядро, подходит ли он по типу),
+// в шагах 1 и 2 не выполняются. Собираем такие программы под конкретные
+// архитектуры — эти ошибки всплывут здесь.
+
+/** Архитектуры для проверки: NVIDIA Ampere (RTX 30xx) и AMD RDNA3 (RX 7900). */
+const GPU_TARGETS = ['sm_86', 'gfx1100'];
+
+const USES_GPU = /\bfrom max\.gpu\b|\bimport max\.gpu\b/;
+
+/** Собирает файл под каждую архитектуру; возвращает текст ошибки или null. */
+function gpuBuildError(file) {
+  for (const target of GPU_TARGETS) {
+    const exe = join(tmpdir(), `mojo-ru-gpu-${process.pid}-${checked}-${target}`);
+    const built = runMojo(file, ['build', `--target-accelerator=${target}`, '-o', exe]);
+    if (existsSync(exe)) unlinkSync(exe);
+    if (!built.ok) return `${target}:\n${built.stderr.trim()}`;
+    if (deprecation(built)) return `${target}: устаревший API\n${deprecation(built)}`;
+  }
+  return null;
+}
+
+for (const file of collect(EXAMPLES, '.mojo')) {
+  const source = readFileSync(file, 'utf-8');
+  if (!USES_GPU.test(source) || !/\bdef main\b/.test(source)) continue;
+  const rel = relative(EXAMPLES, file);
+  checked++;
+  const error = gpuBuildError(file);
+  if (error) {
+    console.error(`✗ ${rel}: не собирается под GPU`);
+    console.error(error);
+    failed++;
+    continue;
+  }
+  console.log(`✓ ${rel} (сборка под GPU: ${GPU_TARGETS.join(', ')})`);
+}
+
+for (const file of collect(DOCS, '.mdx')) {
+  const rel = relative(DOCS, file);
+  if (SKIP_FILES.includes(rel)) continue;
+
+  const blocks = [...readFileSync(file, 'utf-8').matchAll(/```mojo[^\n]*\n([\s\S]*?)```/g)]
+    .map((match) => match[1])
+    .filter((code) => /\bdef main\b/.test(code) && USES_GPU.test(code));
+
+  for (const [index, code] of blocks.entries()) {
+    const tmp = join(tmpdir(), `mojo-ru-gpu-${process.pid}-${checked}.mojo`);
+    writeFileSync(tmp, code, 'utf-8');
+    checked++;
+    const error = gpuBuildError(tmp);
+    unlinkSync(tmp);
+    if (error) {
+      console.error(`✗ ${rel} (блок с GPU #${index + 1}): не собирается под GPU`);
+      console.error(error);
+      failed++;
+      continue;
+    }
+    console.log(`✓ ${rel} (блок с GPU #${index + 1}, сборка под GPU)`);
   }
 }
 

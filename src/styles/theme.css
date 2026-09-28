@@ -193,6 +193,12 @@ header.header {
   color: var(--sl-color-gray-1);
   overflow-x: auto;
   white-space: pre;
+  /* Вывод программы показываем символ в символ, как в терминале: без
+     лигатур `==` и `---` склеиваются, и рисунок из символов плывёт. */
+  font-variant-ligatures: none;
+  font-feature-settings:
+    'liga' 0,
+    'calt' 0;
 }
 
 /* --------------------------------------------------------------------------
