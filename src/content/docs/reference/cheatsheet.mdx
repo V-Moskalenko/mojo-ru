@@ -1,31 +1,608 @@
 ---
 title: Шпаргалка по синтаксису
-description: Весь основной синтаксис Mojo на одной странице.
+description: "Весь основной синтаксис Mojo 1.1 на одной странице: переменные, строки, коллекции, функции, ошибки, структуры, владение, трейты, comptime, SIMD, Python и тесты. Каждый пример — рабочая программа, проверенная компилятором."
 sidebar:
   order: 2
-  badge:
-    text: в работе
-    variant: note
-wip: true
+mojoVersion: 1.1.0
 ---
 
 import { Aside } from '@astrojs/starlight/components';
+import Result from '../../../components/Result.astro';
 
-<Aside type="note" title="Глава пишется">
-  Эта страница — часть плана курса. Текст ещё не написан, но структура
-  зафиксирована: так видно, куда движется проект, и можно предложить
-  свою тему или правку заранее.
+Почти каждый блок ниже — законченная программа: её можно скопировать
+в файл и запустить через `uv run mojo файл.mojo`. Под программой — то,
+что она печатает. И код, и вывод проверяются компилятором при каждом
+изменении курса, так что шпаргалка не отстанет от языка.
+
+Подробности — в главах, ссылки на них стоят в конце каждого раздела.
+
+## Программа и вывод
+
+```mojo
+# Комментарий — как в Python
+comptime GREETING = "Привет"  # константа этапа компиляции
+
+
+def main():
+    print(GREETING, "Mojo")  # аргументы через пробел
+    print("a", "b", "c", sep="-")  # свой разделитель
+    print("без перевода строки", end="")
+    print(" — продолжение")
+```
+
+<Result output={"Привет Mojo\na-b-c\nбез перевода строки — продолжение"} />
+
+Код выполняется только внутри функций: точка входа — `def main()`.
+Подробнее: [Первая программа](/basics/first-program/).
+
+## Переменные и числа
+
+```mojo
+def main() raises:
+    var count = 10  # тип выводится: Int
+    var price: Float64 = 99.5  # тип указан явно
+    var name: String = "Mojo"
+    var ready = True  # Bool
+    count += 1  # дальше var не нужен
+
+    var small: Int8 = 127  # размерные: Int8…Int64, UInt8…UInt64
+    var ratio: Float32 = 0.5  # Float16, Float32, Float64
+
+    # Преобразования — только явные
+    print(Float64(count) * price)  # Int → Float64
+    print(Int(price))  # Float64 → Int: дробь отбрасывается
+    print(String(42) + "!")  # число → строка
+    print(Int("123") + 1)  # строка → число, может бросить ошибку
+
+    var a = 7
+    var b = 2
+    print(a / b, a // b, a % b, a**2)  # Int / Int даёт Int!
+    print(Float64(a) / Float64(b))
+    print(name, ready, small, ratio)
+```
+
+<Result output={"1094.5\n99\n42!\n124\n3 3 1 49\n3.5\nMojo True 127 0.5"} />
+
+<Aside type="caution" title="Int / Int — это Int">
+  Деление двух значений `Int` отбрасывает дробную часть: `a / b` при
+  `a = 7`, `b = 2` даёт `3`. Нужна дробь — переведите в `Float64`.
+  Неявных преобразований между числовыми типами нет.
 </Aside>
 
-## Что будет в этой главе
+Новое имя объявляется через `var`: просто `x = 5` без объявления —
+ошибка компиляции. Подробнее: [Переменные](/basics/variables/),
+[Система типов](/basics/types/).
 
-- Функции и переменные
-- Структуры и трейты
-- Конвенции аргументов
-- Частые операции
+## Строки
 
-## Хотите ускорить
+```mojo
+def main():
+    var s = String("Привет, мир")
+    print(s.byte_length(), len(s.codepoints()))  # байты и символы
+    print(s[codepoint=0:6])  # срез по символам
+    print(s[byte=0:12])  # срез по байтам
+    print(s.upper(), s.find("мир"), "мир" in s)  # find — позиция в байтах
+    print(s.replace("мир", "Mojo"), s.startswith("Прив"))
 
-Курс развивается открыто. Если эта тема нужна вам прямо сейчас —
-напишите об этом в репозитории проекта, главы пишутся в порядке
-спроса, а не строго по номерам.
+    var parts = String("a,b,c").split(",")
+    print(len(parts), parts[0])
+    print(String("-").join(parts))
+    print(String("x = ", 42, ", y = ", 1.5))  # вместо f-строки
+    for ch in String("ёж").codepoints():
+        print(ch, end=" ")
+    print()
+```
+
+<Result output={"20 11\nПривет\nПривет\nПРИВЕТ, МИР 14 True\nПривет, Mojo True\n3 a\na-b-c\nx = 42, y = 1.5\nё ж "} />
+
+`len(строки)` не компилируется: скажите явно, что считать — байты
+(`byte_length()`), символы (`len(s.codepoints())`) или видимые знаки
+(`len(s.graphemes())`). f-строк нет — `String(...)` склеивает любые
+значения. Подробнее: [Строки и Unicode](/basics/strings/).
+
+## Коллекции
+
+```mojo
+from std.collections import Set  # Set импортируется явно
+
+
+# raises: ages["ключ"] бросает ошибку, если ключа нет
+def main() raises:
+    var nums: List[Int] = [3, 1, 2]  # без аннотации будет Array, а не List
+    nums.append(5)
+    print(len(nums), nums[0], nums[len(nums) - 1])
+    var squares: List[Int] = [x * x for x in range(4)]
+    print(squares)
+
+    var ages = Dict[String, Int]()
+    ages["Аня"] = 30
+    ages["Борис"] = 25
+    print("Аня" in ages, ages["Аня"], ages.get("Вера", 0))
+    for item in ages.items():
+        print(item.key, item.value)
+
+    var tags = Set[String]("mojo", "python")
+    tags.add("mojo")
+    print(len(tags), "mojo" in tags)
+
+    var point = (3, "три")  # кортеж
+    var n, word = point  # распаковка
+    print(point[0], n, word)
+
+    var maybe = Optional[Int](42)  # значение или ничего
+    var nothing = Optional[Int]()
+    if maybe:
+        print(maybe.value(), Bool(nothing))
+```
+
+<Result output={"4 3 5\n[0, 1, 4, 9]\nTrue 30 0\nАня 30\nБорис 25\n2 True\n3 3 три\n42 False"} />
+
+Элементы коллекции — одного типа. Аннотация у списка важна: без неё
+`var nums = [3, 1, 2]` — это `Array[Int, 3]` фиксированной длины, и
+`append` у него нет. Отрицательных индексов нет — последний элемент
+`nums[len(nums) - 1]`. `List`, `Dict` и `Optional` доступны без импорта,
+`Set` — из `std.collections`.
+
+## Условия и циклы
+
+```mojo
+def main():
+    var t = 25
+    if t > 30:
+        print("жарко")
+    elif t > 20:
+        print("тепло")
+    else:
+        print("прохладно")
+    print("шорты" if t > 20 else "брюки")  # тернарный оператор
+
+    for i in range(0, 10, 3):
+        print(i, end=" ")
+    print()
+
+    var cities: List[String] = ["Москва", "Казань"]
+    for i, city in enumerate(cities):
+        print(i, city)
+
+    var numbers: List[Int] = [1, 2, 3]
+    for ref x in numbers:  # ref — меняем элементы
+        x *= 10
+    print(numbers)
+
+    var n = 0
+    while n < 5:
+        n += 1
+        if n == 2:
+            continue
+        if n == 4:
+            break
+    else:
+        print("не выполнится: был break")
+    print("n =", n)
+```
+
+<Result output={"тепло\nшорты\n0 3 6 9 \n0 Москва\n1 Казань\n[10, 20, 30]\nn = 4"} />
+
+`else` у цикла срабатывает, только если не было `break`.
+Подробнее: [Управляющие конструкции](/basics/control-flow/).
+
+## Функции
+
+```mojo
+def greet(name: String, greeting: String = "Привет") -> String:
+    return greeting + ", " + name + "!"
+
+
+def divmod2(a: Int, b: Int) -> Tuple[Int, Int]:
+    return (a // b, a % b)
+
+
+def total(*values: Int) -> Int:  # сколько угодно аргументов
+    var sum = 0
+    for v in values:
+        sum += v
+    return sum
+
+
+def clamp(x: Int, *, low: Int, high: Int) -> Int:  # после * — только по имени
+    return max(low, min(x, high))
+
+
+def describe(x: Int):  # перегрузка по типу
+    print("целое", x)
+
+
+def describe(x: String):
+    print("строка", x)
+
+
+def repeat[times: Int](text: String):  # параметр этапа компиляции
+    for _ in range(times):
+        print(text, end=" ")
+    print()
+
+
+def main():
+    print(greet("Мир"), greet("Mojo", greeting="Здравствуй"))
+    var q, r = divmod2(17, 5)
+    print(q, r, total(1, 2, 3), clamp(15, low=0, high=10))
+    describe(1)
+    describe("один")
+    repeat[3]("эй")
+    var square = lambda (x: Int) -> Int: x * x
+    print(square(7))
+```
+
+<Result output={"Привет, Мир! Здравствуй, Mojo!\n3 2 6 10\nцелое 1\nстрока один\nэй эй эй \n49"} />
+
+Типы аргументов обязательны. Параметры в квадратных скобках
+известны при сборке, аргументы в круглых — при запуске.
+Подробнее: [Функции](/basics/functions/),
+[Параметризация](/meta/parameters/).
+
+## Ошибки
+
+```mojo
+def parse_age(text: String) raises -> Int:  # raises: может бросить ошибку
+    var value = Int(text)
+    if value < 0:
+        raise Error("отрицательный возраст")
+    return value
+
+
+def main():
+    for text in ["30", "-5", "abc"]:
+        try:
+            print("возраст:", parse_age(text))
+        except e:
+            print("ошибка:", e)
+        else:
+            print("  ошибок не было")
+        finally:
+            print("  finally — всегда")
+```
+
+<Result output={"возраст: 30\n  ошибок не было\n  finally — всегда\nошибка: отрицательный возраст\n  finally — всегда\nошибка: String is not convertible to integer with base 10: 'abc'\n  finally — всегда"} />
+
+Функция, которая может бросить ошибку, помечается `raises` — и вызвать
+её можно только из `raises`-функции или внутри `try` с `except`.
+Подробнее: [Обработка ошибок](/basics/errors/).
+
+## Структуры
+
+```mojo
+@fieldwise_init  # конструктор из полей по порядку
+struct Point(ImplicitlyCopyable, Writable):
+    var x: Int
+    var y: Int
+
+    comptime ORIGIN_NAME = "начало координат"  # константа типа
+
+    @staticmethod
+    def origin() -> Point:
+        return Point(0, 0)
+
+    def length2(self) -> Int:  # self только читается
+        return self.x * self.x + self.y * self.y
+
+    def shift(mut self, dx: Int):  # mut self — метод меняет объект
+        self.x += dx
+
+    def __add__(self, other: Self) -> Self:  # оператор +
+        return Point(self.x + other.x, self.y + other.y)
+
+    def __eq__(self, other: Self) -> Bool:  # оператор ==
+        return self.x == other.x and self.y == other.y
+
+    def write_to[W: Writer](self, mut writer: W):  # для print и String()
+        writer.write("(", self.x, ", ", self.y, ")")
+
+
+struct Counter:
+    var count: Int
+
+    def __init__(out self, start: Int = 0):  # свой конструктор
+        self.count = start
+
+
+def main():
+    var p = Point(3, 4)
+    p.shift(1)
+    print(p, p.length2(), p + Point(1, 1), p == Point(4, 4))
+    print(Point.origin(), Point.ORIGIN_NAME, Counter(5).count)
+```
+
+<Result output={"(4, 4) 32 (5, 5) True\n(0, 0) начало координат 5"} />
+
+Классов нет, есть `struct`: набор полей фиксирован при компиляции.
+`write_to` делает значение печатаемым и через `print`, и через `String()`.
+Подробнее: [Структуры](/basics/structs/), [Операторы](/basics/operators/).
+
+## Владение значениями
+
+```mojo
+def show(items: List[Int]):  # по умолчанию: только чтение
+    print(items)
+
+
+def append_one(mut items: List[Int]):  # mut: меняем значение вызывающего
+    items.append(1)
+
+
+def consume(var items: List[Int]):  # var: функция владеет значением
+    items.append(99)
+    print("внутри:", items)
+
+
+def make_list(out result: List[Int]):  # out: результат через аргумент
+    result = [7, 8]
+
+
+def longer(ref a: String, ref b: String) -> ref[a, b] String:  # ссылка
+    return a if a.byte_length() > b.byte_length() else b
+
+
+def main():
+    var a: List[Int] = [1, 2]
+    show(a)
+    append_one(a)
+    var b = a.copy()  # явная копия: List не копируется молча
+    consume(a^)  # ^ передаёт владение; a больше нет
+    print(b, make_list())
+
+    var s1 = String("раз")
+    var s2 = String("двадцать")
+    longer(s1, s2) = "заменено"  # запись по возвращённой ссылке
+    print(s1, s2)
+```
+
+<Result output={"[1, 2]\nвнутри: [1, 2, 1, 99]\n[1, 2, 1] [7, 8]\nраз заменено"} />
+
+| Конвенция | Что может функция | Как вызывать |
+| --- | --- | --- |
+| (без пометки) | только читать | `f(x)` |
+| `mut` | менять значение вызывающего | `f(x)` |
+| `var` | владеть значением | `f(x^)` — отдать, `f(x.copy())` — копию; простые типы копируются сами: `f(x)` |
+| `out` | создать значение-результат | `var r = f()` |
+| `ref` | получить и вернуть ссылку | `f(x)` |
+
+`var b = a` для списка не компилируется: `List` не копируется молча.
+Пишите `a.copy()` или `a^`. После `a^` переменная `a` недоступна.
+Подробнее: [Конвенции передачи аргументов](/ownership/conventions/),
+[Копирование и перемещение](/ownership/copy-move/).
+
+## Трейты и обобщённый код
+
+```mojo
+trait Shape:
+    def area(self) -> Float64:  # обязательный метод
+        ...
+
+    def name(self) -> String:  # метод с реализацией по умолчанию
+        return "фигура"
+
+
+@fieldwise_init
+struct Square(Copyable, Shape):  # структура объявляет трейты
+    var side: Float64
+
+    def area(self) -> Float64:
+        return self.side * self.side
+
+
+@fieldwise_init
+struct Circle(Copyable, Shape):
+    var r: Float64
+
+    def area(self) -> Float64:
+        return 3.14159 * self.r * self.r
+
+    def name(self) -> String:
+        return "круг"
+
+
+def report[T: Shape](s: T):  # обобщённая функция
+    print(s.name(), s.area())
+
+
+def total_area[T: Shape & Copyable](items: List[T]) -> Float64:  # два трейта
+    var sum = 0.0
+    for item in items:
+        sum += item.area()
+    return sum
+
+
+def main():
+    report(Square(2))
+    report(Circle(1))
+    var squares: List[Square] = [Square(1), Square(2)]
+    print(total_area(squares))
+```
+
+<Result output={"фигура 4.0\nкруг 3.14159\n5.0"} />
+
+Трейт — набор требований. Функция `report[T: Shape]` работает с любым
+типом, который его выполняет, и компилируется отдельно под каждый.
+Подробнее: [Трейты и обобщённый код](/meta/traits/).
+
+## Этап компиляции
+
+```mojo
+comptime SIZE = 4  # константа этапа компиляции
+comptime Doubled[n: Int]: Int = n * 2  # параметризованная константа
+
+
+def fib(n: Int) -> Int:
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+
+struct Vec[n: Int]:  # параметр типа
+    var data: Array[Float64, Self.n]
+
+    def __init__(out self, fill: Float64):
+        self.data = Array[Float64, Self.n](fill=fill)
+
+    def sum(self) -> Float64:
+        var s = 0.0
+        comptime for i in range(Self.n):  # цикл разворачивается при сборке
+            s += self.data[i]
+        return s
+
+
+def positive[n: Int]() -> Int where n > 0:  # ограничение на параметр
+    return n
+
+
+def main():
+    comptime F20 = fib(20)  # посчитано при сборке
+    comptime assert SIZE % 2 == 0, "SIZE должен быть чётным"
+    comptime if SIZE > 2:  # ветка выбирается при сборке
+        print("большой размер")
+    else:
+        print("маленький размер")
+    print(F20, Doubled[21], Vec[SIZE](1.5).sum(), positive[3]())
+```
+
+<Result output={"большой размер\n6765 42 6.0 3"} />
+
+Всё, что помечено `comptime`, считается при сборке — в программе остаются
+готовые значения. Подробнее: [Вычисления на этапе компиляции](/meta/comptime/),
+[Ограничения](/meta/constraints/).
+
+## SIMD и указатели
+
+```mojo
+def main():
+    var v = SIMD[DType.float32, 4](1, 2, 3, 4)  # четыре числа в регистре
+    print(v * 2, v + v, v.reduce_add(), v[0])
+    var mask = v.gt(2)  # сравнение по элементам
+    print(mask, mask.select(v, 0))  # выбор по маске
+
+    var data: List[Float32] = [1, 2, 3, 4, 5, 6, 7, 8]
+    var ptr = data.unsafe_ptr()  # указатель на элементы
+    var chunk = ptr.unsafe_load[width=4](4)  # загрузить 4 числа с индекса 4
+    ptr.unsafe_store(0, chunk * 10)  # записать 4 числа в начало
+    print(data)
+```
+
+<Result output={"[2.0, 4.0, 6.0, 8.0] [2.0, 4.0, 6.0, 8.0] 10.0 1.0\n[False, False, True, True] [0.0, 0.0, 3.0, 4.0]\n[50.0, 60.0, 70.0, 80.0, 5.0, 6.0, 7.0, 8.0]"} />
+
+Сравнение векторов поэлементно — через методы `gt`, `lt`, `eq` и другие.
+Оператор `>` для вектора не компилируется, а `==` компилируется, но
+отвечает одним `Bool` за весь вектор. `unsafe_load`
+и `unsafe_store` границ не проверяют. Подробнее: [SIMD с нуля](/performance/simd/),
+[Указатели и память](/performance/pointers/).
+
+## Векторизация и потоки
+
+```mojo
+from std.algorithm import vectorize
+from max.algorithm import parallelize  # нужен пакет max: uv add max
+
+
+def main():
+    var data = List[Float32](length=10, fill=1)
+    var ptr = data.unsafe_ptr()
+
+    # vectorize: нарезает массив на векторы ширины 4 и досчитывает хвост
+    def double[width: Int](i: Int) {imm ptr}:
+        ptr.unsafe_store(i, ptr.unsafe_load[width=width](i) * 2)
+
+    vectorize[4](len(data), double)
+    print(data)
+
+    # parallelize: вызывает функцию для 0, 1, …, n-1 на разных ядрах
+    var squares = List[Int](length=8, fill=0)
+    var dst = squares.unsafe_ptr()
+
+    def work(i: Int) {imm dst}:
+        dst[unsafe_offset=i] = i * i
+
+    parallelize(work, 8)
+    print(squares)
+```
+
+<Result output={"[2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]\n[0, 1, 4, 9, 16, 25, 36, 49]"} />
+
+Список захвата в фигурных скобках — `{imm ptr}` — говорит, какие внешние
+переменные и как захватывает вложенная `def`. Без него она
+не соберётся. Подробнее:
+[Векторизация и параллелизм](/performance/vectorize-parallelize/),
+[Замыкания и лямбды](/performance/closures/).
+
+## Python из Mojo
+
+```mojo
+from std.python import Python
+
+
+def main() raises:
+    var math = Python.import_module("math")  # любой модуль Python
+    var root = math.sqrt(16)  # результат — PythonObject
+    print(root, Float64(py=root) + 1)  # явное преобразование
+
+    var json = Python.import_module("json")
+    var data = json.loads('{"name": "Mojo", "tags": ["fast", "typed"]}')
+    var name = String(py=data["name"])
+    print(name, len(data["tags"]))
+    for tag in data["tags"]:
+        print(tag)
+```
+
+<Result output={"4.0 5.0\nMojo 2\nfast\ntyped"} />
+
+Всё, что пришло из Python, — `PythonObject`. В родные типы Mojo
+его переводят явно: `Int(py=...)`, `Float64(py=...)`, `String(py=...)`.
+Подробнее: [Вызов Python из Mojo](/interop/python-from-mojo/).
+
+## Модули
+
+```mojo
+import geometry                          # geometry.mojo рядом
+from geometry import to_centimeters      # отдельное имя
+from shapes import Circle, Rectangle     # пакет: папка с __init__.mojo
+from std.math import sqrt                # стандартная библиотека
+```
+
+Подробнее: [Модули и пакеты](/basics/modules/).
+
+## Тесты
+
+```mojo
+from std.testing import assert_equal, assert_raises, assert_true, TestSuite
+
+
+def parse(text: String) raises -> Int:
+    return Int(text)
+
+
+def test_parse() raises:  # тест — функция с именем test_*
+    assert_equal(parse("42"), 42)
+    assert_true(parse("7") > 0)
+
+
+def test_bad_input() raises:
+    with assert_raises():  # ждём ошибку
+        _ = parse("abc")
+
+
+def main() raises:
+    TestSuite.discover_tests[__functions_in_module()]().run()
+```
+
+Отдельной команды для тестов нет: файл запускается как обычная
+программа, `TestSuite` сам находит функции `test_*`.
+Подробнее: [Тестирование и отладка](/interop/testing/).
+
+## Командная строка
+
+```bash
+uv run mojo app.mojo                     # собрать и запустить
+uv run mojo build app.mojo -o app        # исполняемый файл
+uv run mojo run -D ASSERT=all app.mojo   # включить все debug_assert
+uv run mojo build app.mojo -D SIZE=64    # значение для get_defined_int
+uv run mojo format .                     # отформатировать код
+uv run mojo precompile shapes -o shapes.mojoc   # предкомпилировать пакет
+uv run mojo debug app.mojo               # отладчик
+uv run mojo --version
+```
