@@ -89,18 +89,22 @@ def main():
     var parts = String("a,b,c").split(",")
     print(len(parts), parts[0])
     print(String("-").join(parts))
-    print(String("x = ", 42, ", y = ", 1.5))  # вместо f-строки
+    var x = 42
+    print(t"x = {x}, x² = {x * x}")  # t-строка вместо f-строки
+    var line = String(t"x = {x}")  # t-строка -> String
+    print(line, String("y = ", 1.5))  # String(...) склеивает значения
     for ch in String("ёж").codepoints():
         print(ch, end=" ")
     print()
 ```
 
-<Result output={"20 11\nПривет\nПривет\nПРИВЕТ, МИР 14 True\nПривет, Mojo True\n3 a\na-b-c\nx = 42, y = 1.5\nё ж "} />
+<Result output={"20 11\nПривет\nПривет\nПРИВЕТ, МИР 14 True\nПривет, Mojo True\n3 a\na-b-c\nx = 42, x² = 1764\nx = 42 y = 1.5\nё ж "} />
 
 `len(строки)` не компилируется: скажите явно, что считать — байты
 (`byte_length()`), символы (`len(s.codepoints())`) или видимые знаки
-(`len(s.graphemes())`). f-строк нет — `String(...)` склеивает любые
-значения. Подробнее: [Строки и Unicode](/basics/strings/).
+(`len(s.graphemes())`). Вместо f-строк — t-строки `t"x = {x}"`:
+спецификаторов формата вроде `{x:.2f}` у них нет, округляйте в скобках —
+`t"{round(x, 2)}"`. Подробнее: [Строки и Unicode](/basics/strings/).
 
 ## Коллекции
 

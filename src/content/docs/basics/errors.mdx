@@ -98,7 +98,7 @@ def load(path: String) raises -> String:
   </Fragment>
 </PyMojo>
 
-## Тип ошибки ровно один
+## Ошибка — это значение
 
 `raise` принимает значение типа `Error` — или просто строку, которая
 в него превратится:
@@ -122,41 +122,163 @@ def main():
 возраст отрицательный
 </Result>
 
-Своих классов исключений в Mojo нет:
+У `Error` есть только текст сообщения. Для многих программ этого
+хватает. Но если вызывающему коду нужно больше — какое поле неверно,
+в какой позиции сломался разбор, повторять ли попытку, — объявите
+**свой тип ошибки**.
 
-<CompilerError msg="error: cannot implicitly convert 'ParseError' value to 'Error'">
-  <Fragment slot="meaning">
-    Вы попытались бросить собственную структуру. Иерархии исключений,
-    как в Python, в языке пока нет — тип ошибки единственный.
-  </Fragment>
-  <Fragment slot="fix">
-    Различайте ошибки по тексту сообщения либо, если различие важно
-    для логики, возвращайте результат через `Optional` или собственный
-    тип-результат вместо исключения.
-  </Fragment>
-</CompilerError>
+### Свой тип ошибки
 
-Практический приём — префикс в сообщении:
+Ошибкой может быть любая структура. Структуры подробно разобраны
+в следующей главе, [«Структуры»](/basics/structs/); здесь хватит двух
+вещей: `@fieldwise_init` создаёт конструктор из полей по порядку,
+а метод `write_to` делает значение печатаемым.
 
 ```mojo
-def check(age: Int) raises:
-    if age < 0:
-        raise Error("ввод: возраст отрицательный")
+@fieldwise_init
+struct AgeError(Copyable, Writable):
+    var text: String
+    var reason: String
+
+    def write_to[W: Writer](self, mut writer: W):
+        writer.write("«", self.text, "» — ", self.reason)
+
+
+def parse_age(text: String) raises AgeError -> Int:
+    var value: Int
+    try:
+        value = Int(text)
+    except:
+        raise AgeError(text, "не число")
+    if value < 0:
+        raise AgeError(text, "отрицательный возраст")
+    if value > 150:
+        raise AgeError(text, "слишком большой возраст")
+    return value
 
 
 def main():
-    try:
-        check(-5)
-    except e:
-        if String(e).startswith("ввод:"):
-            print("это ошибка пользователя, попросим ввести заново")
-        else:
-            print("это сбой программы:", e)
+    for text in ["30", "abc", "-5", "200"]:
+        try:
+            print(text, "->", parse_age(text))
+        except e:
+            print(text, "-> отклонено:", e.reason)
 ```
 
 <Result>
-это ошибка пользователя, попросим ввести заново
+30 -> 30
+abc -> отклонено: не число
+-5 -> отклонено: отрицательный возраст
+200 -> отклонено: слишком большой возраст
 </Result>
+
+Что здесь происходит:
+
+- **`raises AgeError -> Int`** — функция обещает бросать только
+  `AgeError`. Компилятор проверит каждый `raise` в её теле.
+- **`except e:`** — тип `e` компилятор выводит сам, из вызванной функции.
+  Поэтому доступны поля: `e.reason`, `e.text`. Писать тип в `except`
+  не нужно — и нельзя: формы `except AgeError as e` в Mojo нет.
+- **Переупаковка.** `Int(text)` бросает обычный `Error`, а наша функция
+  обещала `AgeError`. Поэтому чужую ошибку ловим и бросаем свою. Это
+  обычный приём на границе между кодом с `Error` и кодом со своими
+  типами.
+
+Такие ошибки называют **типизированными** (*typed errors*). Они к тому же
+лёгкие: компилятор передаёт их как второе, альтернативное возвращаемое
+значение функции. А если в полях нет строк и других данных в куче,
+типизированные ошибки работают даже на видеокарте.
+
+### Правила
+
+**Один тип ошибки на функцию и один `except` на `try`.** Если в одном
+`try` вызвать функции с разными типами ошибок, компилятор откажется:
+
+<CompilerError msg="error: cannot call function that may raise 'Error' in context that supports an error type of 'AgeError'">
+  <Fragment slot="meaning">
+    В одном `try` оказались вызов, бросающий `AgeError`, и вызов,
+    бросающий `Error`. Переменная `e` в `except` может быть только
+    одного типа.
+  </Fragment>
+  <Fragment slot="fix">
+    Разнесите вызовы по разным блокам `try` или переупакуйте `Error`
+    в свой тип, как в примере выше.
+  </Fragment>
+</CompilerError>
+
+**Голый `raises` стирает тип.** Если функция объявлена просто `raises`,
+а внутри зовёт функцию с `raises AgeError`, наружу ошибка выйдет как
+`Error`. Текст сообщения сохранится, а поля — нет:
+`'Error' value has no attribute 'reason'`. Объявляйте тип ошибки
+по всей цепочке вызовов, где он важен.
+
+**Свою структуру можно бросить и из функции с голым `raises`** — если
+она умеет себя печатать, то есть реализует `Writable`. Тогда она
+превратится в `Error` с её текстом. Без `Writable` превращать не во что:
+
+<CompilerError msg="error: cannot implicitly convert 'ParseError' value to 'Error'">
+  <Fragment slot="meaning">
+    Функция объявлена просто `raises`, то есть бросает `Error`, а в `raise`
+    стоит ваша структура, которая не умеет печататься.
+  </Fragment>
+  <Fragment slot="fix">
+    Объявите тип ошибки в сигнатуре: `raises ParseError`. Или добавьте
+    структуре трейт `Writable` с методом `write_to`.
+  </Fragment>
+</CompilerError>
+
+### Несколько видов ошибок
+
+Тип ошибки у функции один, а сломаться она может по-разному. Самый
+простой способ различать случаи — одна структура с заранее заданными
+значениями:
+
+```mojo
+@fieldwise_init
+struct ConfigError(Equatable, ImplicitlyCopyable, Writable):
+    var code: Int
+
+    comptime missing = ConfigError(1)
+    comptime not_a_number = ConfigError(2)
+
+    def write_to[W: Writer](self, mut writer: W):
+        if self == ConfigError.missing:
+            writer.write("параметр не задан")
+        else:
+            writer.write("значение — не число")
+
+
+def read_port(value: String) raises ConfigError -> Int:
+    if value.byte_length() == 0:
+        raise ConfigError.missing
+    try:
+        return Int(value)
+    except:
+        raise ConfigError.not_a_number
+
+
+def main():
+    for value in ["8080", "", "http"]:
+        try:
+            print("порт:", read_port(value))
+        except e:
+            if e == ConfigError.missing:
+                print("берём порт по умолчанию: 80")
+            else:
+                print("ошибка:", e)
+```
+
+<Result>
+порт: 8080
+берём порт по умолчанию: 80
+ошибка: значение — не число
+</Result>
+
+`comptime missing = ConfigError(1)` — именованная константа прямо внутри
+типа, а трейт `Equatable` даёт сравнение `==`. Если каждому виду ошибки
+нужны свои поля, в стандартной библиотеке есть `Variant` — «одно
+из нескольких значений»; он разобран в
+[официальном руководстве](https://mojolang.org/docs/manual/errors/#the-variant-type).
 
 ## `try` / `except` / `else` / `finally`
 
@@ -193,8 +315,9 @@ finally: выполняется всегда
 
 <CompilerError msg="error: expected ':' after 'except'">
   <Fragment slot="meaning">
-    Вы написали питоновское `except Error as e:`. В Mojo такой формы нет —
-    ловить по типу нечего, тип всегда `Error`.
+    Вы написали питоновское `except Error as e:`. В Mojo такой формы нет:
+    тип ошибки в `except` не пишут, компилятор выводит его из вызванной
+    функции.
   </Fragment>
   <Fragment slot="fix">
     Пишите просто `except e:` — переменная указывается сразу, без `as`.
@@ -471,9 +594,16 @@ finally: выполняется всегда
     Если нужно передать причину сбоя — бросайте исключение.
   </QuizItem>
   <QuizItem q="Как объявить собственный тип исключения?">
-    Никак: в Mojo тип ошибки единственный — `Error`. Различают ошибки
-    по тексту сообщения (например, по префиксу) либо возвращают результат
-    другим способом — через `Optional` или свой тип-результат.
+    Сделать структуру — лучше с `Writable`, чтобы ошибку можно было
+    напечатать, — и указать её в сигнатуре: `def f() raises MyError -> Int`.
+    В `except e:` переменная `e` сразу получит тип `MyError` с его полями.
+    Наследования и иерархии исключений, как в Python, нет: у функции ровно
+    один тип ошибки.
+  </QuizItem>
+  <QuizItem q="Функция объявлена просто `raises`, а внутри вызывает функцию с `raises AgeError`. Что получит вызывающий код?">
+    Обычный `Error`: тип сотрётся. Текст сообщения сохранится, но поля
+    `AgeError` станут недоступны. Чтобы их сохранить, объявите
+    `raises AgeError` и у внешней функции.
   </QuizItem>
 </Quiz>
 

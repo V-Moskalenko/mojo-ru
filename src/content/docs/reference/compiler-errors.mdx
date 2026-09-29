@@ -109,6 +109,12 @@ Mojo печатает не одну строку, а несколько: сна�
 другими словами: `module does not contain a 'main' function`.
 → [Модули и пакеты](/basics/modules/)
 
+**`` error: expected ')' in call argument list ``**
+
+Самая частая причина у питониста — f-строка: `print(f"x = {x}")`.
+Префикса `f` Mojo не знает. Замените его на `t`: `print(t"x = {x}")`.
+→ [Строки и Unicode](/basics/strings/#форматирование-t-строки-и-format)
+
 ## Типы и преобразования
 
 **`` error: cannot implicitly convert 'Int' value to 'Int64' ``**
@@ -162,6 +168,18 @@ Mojo печатает не одну строку, а несколько: сна�
 Операторы `<` и `>` работают только для одного числа. Вектор сравнивают
 поэлементно методами `gt`, `lt`, `ge`, `le`. → [SIMD с нуля](/performance/simd/)
 
+**`` error: format specifiers are not supported in t-strings; format the value manually before interpolating ``**
+
+`t"{price:.2f}"` не компилируется: спецификаторов формата в t-строках нет.
+Подготовьте значение прямо в скобках: `t"{round(price, 2)}"`.
+→ [Строки и Unicode](/basics/strings/#форматирование-t-строки-и-format)
+
+**`` error: invalid call to 'show': value passed to 'text' cannot be converted from 'TString[Int]' to 'String' ``**
+
+t-строка — ленивый шаблон, а не `String`. Функции, которая ждёт
+`String`, передайте `String(t"...")`.
+→ [Строки и Unicode](/basics/strings/#форматирование-t-строки-и-format)
+
 ## Функции и аргументы
 
 **`` error: expression must be mutable for in-place operator destination ``**
@@ -213,6 +231,30 @@ Mojo печатает не одну строку, а несколько: сна�
 
 То же для самого `raise`: функция, которая бросает ошибку, должна быть
 помечена `raises`. → [Обработка ошибок](/basics/errors/)
+
+**`` error: expected ':' after 'except' ``**
+
+Питоновское `except Error as e:`. Тип ошибки в `except` не пишут:
+компилятор выводит его из вызванной функции. Пишите `except e:`.
+→ [Обработка ошибок](/basics/errors/)
+
+**`` error: cannot call function that may raise 'Error' in context that supports an error type of 'AgeError' ``**
+
+В одном `try` оказались вызовы с разными типами ошибок — здесь `AgeError`
+и обычный `Error`. Разнесите их по разным `try` или переупакуйте `Error`
+в свой тип. → [Обработка ошибок](/basics/errors/#правила)
+
+**`` error: 'Error' value has no attribute 'reason' ``**
+
+Функция между вами и источником ошибки объявлена просто `raises`,
+и тип ошибки стёрся до `Error`: текст остался, полей нет. Объявите
+`raises AgeError` по всей цепочке. → [Обработка ошибок](/basics/errors/#правила)
+
+**`` error: cannot implicitly convert 'ParseError' value to 'Error' ``**
+
+Из функции с голым `raises` брошена своя структура, которая не умеет
+печататься. Укажите тип в сигнатуре — `raises ParseError` — или добавьте
+структуре `Writable`. → [Обработка ошибок](/basics/errors/#правила)
 
 ## Владение и копирование
 

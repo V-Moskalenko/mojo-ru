@@ -84,10 +84,9 @@ def add(a: Int, b: Int) -> Int:
   </Fragment>
 </CompilerError>
 
-## 3. F-строк нет
+## 3. Вместо f-строк — t-строки
 
-Пожалуй, самая обидная потеря для питониста. `f"..."` в Mojo
-не поддерживается, и ошибка при этом выглядит загадочно:
+`f"..."` Mojo не понимает, и ошибка при этом выглядит загадочно:
 
 <CompilerError msg={`error: expected ')' in call argument list
     print(f"x = {x}")
@@ -98,11 +97,8 @@ def add(a: Int, b: Int) -> Int:
     про закрывающую скобку.
   </Fragment>
   <Fragment slot="fix">
-    Передавайте значения аргументами `print` — он сам расставит пробелы:
-
-    `print("x =", x)`
-
-    Либо соберите строку явно: `print("x = " + String(x))`.
+    Замените `f` на `t`: `print(t"x = {x}")`. Это t-строка — шаблон
+    с подстановкой, почти как f-строка в Python.
   </Fragment>
 </CompilerError>
 
@@ -115,13 +111,16 @@ name = f"{first} {last}"
   </Fragment>
   <Fragment slot="mojo">
 ```mojo
-print("x =", x)
-var name = first + " " + last
+print(t"x = {x}")
+var name = String(t"{first} {last}")
 ```
   </Fragment>
   <Fragment slot="note">
-    `String(значение)` превращает в строку что угодно: число, булево,
-    свою структуру — если она умеет себя печатать.
+    Отличий от f-строк два. t-строка — ленивый шаблон, а не `String`:
+    чтобы получить строку, оберните её в `String(...)`. И спецификаторов
+    формата вроде `{x:.2f}` нет — округлите прямо в скобках:
+    `t"{round(x, 2)}"`. Подробнее — в главе
+    [«Строки и Unicode»](/basics/strings/#форматирование-t-строки-и-format).
   </Fragment>
 </PyMojo>
 
@@ -351,7 +350,7 @@ uv run mojo build main.mojo   # получить исполняемый файл
 | --- | --- |
 | Код на верхнем уровне | Только внутри `def main()` |
 | `def add(a, b)` | `def add(a: Int, b: Int) -> Int` |
-| `f"x = {x}"` | `print("x =", x)` или `"x = " + String(x)` |
+| `f"x = {x}"` | `t"x = {x}"`; строка — `String(t"x = {x}")` |
 | `len(s)` для строки | `s.byte_length()` / `len(s.codepoints())` / `len(s.graphemes())` |
 | `s[1:4]` | `s[byte=1:4]` или `s[codepoint=1:4]` |
 | `items[-1]` | `items[len(items) - 1]` |
