@@ -537,6 +537,11 @@ uv run mojo build bench_matmul.mojo
 - сравнение с NumPy прямо из Mojo через `Python.import_module("numpy")`
   (глава [«Python из Mojo»](/interop/python-from-mojo/)).
 
+## Что дальше
+
+Следующий проект — [ускоряем Python-скрипт](/projects/speedup-python/):
+как перенести в Mojo узкое место программы, которая уже написана.
+
 <Quiz>
   <QuizItem q="Почему смена порядка циклов (шаг 2) почти ничего не дала, хотя доступ к памяти стал последовательным?">
     Внутренний цикл тормозила проверка границ в индексации `List`:
