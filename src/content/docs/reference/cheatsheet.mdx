@@ -562,6 +562,34 @@ def main() raises:
 его переводят явно: `Int(py=...)`, `Float64(py=...)`, `String(py=...)`.
 Подробнее: [Вызов Python из Mojo](/interop/python-from-mojo/).
 
+## Файлы и случайные числа
+
+```mojo
+from std.pathlib import Path
+from std.random import random_si64, seed
+from std.tempfile import TemporaryDirectory
+
+
+def main() raises:
+    with TemporaryDirectory() as tmp:
+        var p = Path(tmp) / "log.txt"
+        with open(p, "w") as f:  # режимы: "r", "w", "a", "rw"
+            f.write("строка ", 1, "\n")  # без пробелов и без \n в конце
+        with open(p, "a") as f:
+            f.write("строка 2\n")
+        for line in p.read_text().splitlines():  # построчно — только так
+            print(line)
+
+    seed(2026)  # без seed числа одинаковы при каждом запуске
+    print(Int(random_si64(1, 6)))  # как random.randint(1, 6)
+```
+
+<Result output={"строка 1\nстрока 2\n4"} />
+
+Модули стандартной библиотеки — только с префиксом `std.`. Для замеров —
+`perf_counter_ns()` из `std.time`, для текущей даты — питоновский
+`datetime`. Подробнее: [Стандартная библиотека на каждый день](/basics/stdlib/).
+
 ## Модули
 
 ```mojo

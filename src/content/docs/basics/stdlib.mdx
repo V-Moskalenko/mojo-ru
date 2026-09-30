@@ -1,0 +1,563 @@
+---
+title: Стандартная библиотека на каждый день
+description: "Файлы, пути, переменные окружения, время, случайные числа, математика, ввод с клавиатуры и запуск команд в Mojo 1.1: куда переехали привычные модули Python, чем они отличаются и чего в стандартной библиотеке нет."
+sidebar:
+  order: 11
+mojoVersion: 1.1.0
+---
+
+import { Aside, Code } from '@astrojs/starlight/components';
+import Result from '../../../components/Result.astro';
+import CompilerError from '../../../components/CompilerError.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
+import notes from '../../../../examples/basics/stdlib/notes.mojo?raw';
+import paths from '../../../../examples/basics/stdlib/paths.mojo?raw';
+import env from '../../../../examples/basics/stdlib/env.mojo?raw';
+import timing from '../../../../examples/basics/stdlib/timing.mojo?raw';
+
+Python славится «батарейками в комплекте»: в стандартной поставке есть
+модули почти на любой случай. Стандартная библиотека Mojo меньше. Она
+выросла из задач производительности: в ней отлично проработаны `SIMD`,
+память и параллелизм, а вот JSON и регулярных выражений нет.
+
+В этой главе — то, что нужно в обычной программе: файлы и пути,
+переменные окружения, время, случайные числа, математика, ввод
+с клавиатуры и запуск внешних команд. И честный список того, чего нет,
+с рецептом, как это восполнить.
+
+## Где что лежит
+
+| Python | Mojo | Что внутри |
+| --- | --- | --- |
+| `open()`, `input()`, `print()` | те же, без импорта | файлы, ввод, вывод |
+| `pathlib` | `std.pathlib` | `Path` |
+| `os`, `os.path` | `std.os`, `std.os.path` | каталоги, окружение, операции с путями |
+| `sys` | `std.sys` | `argv()`, `exit`, `stderr` |
+| `time` | `std.time` | замер времени, `sleep` |
+| `random` | `std.random` | случайные числа |
+| `math` | `std.math` | функции и константы |
+| `tempfile` | `std.tempfile` | временные файлы и каталоги |
+| `subprocess` | `std.subprocess` | только `run` |
+| `datetime`, `json`, `re`, `csv`, `argparse` | нет | см. [«Чего нет»](#чего-нет-и-что-делать) |
+
+Модули стандартной библиотеки импортируются **только с префиксом
+`std.`**: `from std.math import sqrt`. Старые статьи пишут `from math
+import sqrt`, и в Mojo 1.x это ошибка:
+
+<CompilerError msg="error: unable to locate module 'math'">
+  <Fragment slot="meaning">
+    До версии 1.0 компилятор находил модули стандартной библиотеки и без
+    префикса. Теперь имена `math`, `random`, `collections` свободны
+    для ваших собственных модулей, а стандартные живут в пакете `std`.
+  </Fragment>
+  <Fragment slot="fix">
+    Добавьте префикс: `from std.math import sqrt`.
+  </Fragment>
+</CompilerError>
+
+## Файлы
+
+Файл открывает встроенная функция `open`, закрывает блок `with` — всё как
+в Python:
+
+<Code code={notes} lang="mojo" title="notes.mojo" />
+
+<Result output={"1 | первая строка\n2 | число: 42, дробь: 2.5\n3 | дописали в конец"} />
+
+Пример пишет во временный каталог: `TemporaryDirectory` из `std.tempfile`
+создаёт его при входе в `with` и удаляет со всем содержимым при выходе.
+Удобно для примеров и тестов — после программы не остаётся мусора.
+
+Что стоит заметить:
+
+- **`write` принимает несколько значений** любых типов, которые умеют
+  печататься, и пишет их подряд — без пробелов между ними и без перевода
+  строки в конце, в отличие от `print`.
+- **Построчно файл не читается.** Итерировать `FileHandle`, как в Python
+  (`for line in f`), нельзя, и `readline()` у него нет. Читайте целиком
+  и делите методом `splitlines()`.
+- **Режимов четыре:** `"r"` — чтение, `"w"` — запись с нуля, `"a"` —
+  дозапись в конец, `"rw"` — чтение и запись без стирания. Двоичного
+  режима `"b"` нет: байты читает и пишет пара методов `read_bytes()`
+  и `write_bytes()`.
+- **Недостающие каталоги создаются сами.** В режимах `"w"`, `"a"`
+  и `"rw"` Mojo создаёт и файл, и все каталоги на пути к нему. Python
+  в таком случае бросает `FileNotFoundError`, так что опечатка в пути
+  здесь не остановит программу, а создаст лишнюю папку.
+
+Ошибки открытия — обычные исключения:
+
+```mojo
+def main():
+    try:
+        var f = open("нет-такого-файла.txt", "r")
+        print(f.read())
+    except e:
+        print(e)
+
+    try:
+        _ = open("notes.txt", "x")
+    except e:
+        print(e)
+```
+
+<Result output={"Failed to open file 'нет-такого-файла.txt': No such file or directory\ninvalid mode: \"x\". Can only be one of: {\"r\", \"w\", \"rw\", \"a\"}"} />
+
+<Aside type="caution" title="`read(n)` считает байты, а не буквы">
+  В Python `f.read(4)` у текстового файла читает четыре символа. В Mojo —
+  четыре **байта**. Русская буква в UTF-8 занимает два байта, и если
+  граница придётся на середину буквы, `read` бросит ошибку:
+
+```mojo
+from std.pathlib import Path
+from std.tempfile import TemporaryDirectory
+
+
+def main() raises:
+    with TemporaryDirectory() as tmp:
+        var p = Path(tmp) / "hi.txt"
+        p.write_text("привет")
+        with open(p, "r") as f:
+            print(f.read(4))  # 4 байта — это две русские буквы
+            try:
+                print(f.read(3))  # 3 байта — полторы буквы
+            except e:
+                print("ошибка:", e)
+        with open(p, "r") as f:
+            var raw = f.read_bytes()
+            print(len(raw), "байтов:", raw[0], raw[1])
+```
+
+<Result output={"пр\nошибка: Cannot construct a String from invalid UTF-8 data\n12 байтов: 208 191"} />
+
+  Если файл нужно читать кусками, читайте байты через `read_bytes(n)`,
+  а строку собирайте, когда кусок заканчивается на целой букве.
+  Подробнее о байтах и буквах — в главе [«Строки и Unicode»](/basics/strings/).
+</Aside>
+
+Переменная, объявленная внутри `with`, после блока не видна — эту
+ловушку для питонистов мы разбирали в проекте
+[«Утилита командной строки»](/projects/cli-tool/#чтение-файлов-и-стандартного-ввода).
+
+## Пути: `pathlib`
+
+`Path` из `std.pathlib` устроен как в Python: пути склеиваются
+оператором `/`, у пути есть имя и расширение, а короткие файлы читаются
+и пишутся одним вызовом:
+
+<Code code={paths} lang="mojo" title="paths.mojo" />
+
+<Result output={"data/2026/report.final.csv\nreport.final.csv .csv\n[data, 2026, report.final.csv]\nальфа\nTrue False\nTrue True\n[a.txt, b.csv, sub]"} />
+
+Отличия от Python:
+
+- `name()`, `suffix()`, `parts()` — **методы**, со скобками, а не свойства.
+- `listdir()` возвращает **только имена** — `a.txt`, а не
+  `/tmp/…/a.txt`, хоть и в виде `Path`. Полный путь собирайте сами:
+  `root / child`. Порядок — тот, в каком их отдала файловая система,
+  то есть произвольный. Нужен порядок — сортируйте.
+- У `Path` нет `mkdir`, `parent`, `stem`, `glob`, `unlink`. Их заменяют
+  функции из `std.os` и `std.os.path`: `makedirs`, `dirname`,
+  `split_extension`, `listdir`, `remove`. Все они принимают и `Path`,
+  и строку.
+- Ещё есть `Path.home()`, `cwd()` (текущий каталог, импортируется как
+  функция: `from std.pathlib import cwd`) и `expanduser()` для путей
+  вида `~/data`.
+
+## `os` и `os.path`
+
+Функции `std.os.path` принимают и строку, и `Path`, а возвращают
+строки — удобно, когда путь и так строка. А `getenv` читает переменные
+окружения:
+
+<Code code={env} lang="mojo" title="env.mojo" />
+
+<Result output={"data/2026/report.csv\nreport.csv | data/2026\ndata/2026/report | .csv\nTrue\nпо умолчанию\n3\nнет"} />
+
+`getenv` не бросает исключение и не возвращает `Optional`: если
+переменной нет, вы получите второй аргумент, а без него — пустую строку.
+Без второго аргумента «переменная не задана» и «задана пустой»
+не различаются. Если разница важна, передайте запасное значение: для
+пустой переменной `getenv` вернёт пустую строку, а не его.
+
+В `std.os` есть и остальное привычное: `listdir`, `mkdir`,
+`makedirs(path, exist_ok=True)`, `remove`, `rmdir`, `chdir`. В
+`std.os.path` — `exists`, `isfile`, `isdir`, `getsize`, `expanduser`,
+`expandvars`.
+
+Аргументы командной строки, стандартный поток ошибок и код возврата
+живут в `std.sys`:
+
+```mojo
+from std.sys import argv, exit, stderr
+
+
+def file_from_args() -> String:
+    var args = argv()
+    if len(args) < 2:
+        print("использование: app ФАЙЛ", file=stderr)
+        exit(2)  # код 2 — ошибка в аргументах
+    return String(args[1])
+```
+
+Всё это подробно, с разбором ключей, — в проекте
+[«Утилита командной строки»](/projects/cli-tool/).
+
+## Время
+
+`std.time` умеет две вещи: мерить промежутки и ждать.
+
+<Code code={timing} lang="mojo" title="timing.mojo" />
+
+<Result output={"прошло не меньше 50 мс: True\nв секундах, Float64: True"} />
+
+| Функция | Что возвращает |
+| --- | --- |
+| `perf_counter_ns()` | `Int`, наносекунды — для замеров |
+| `perf_counter()` | `Float64`, секунды |
+| `monotonic()` | то же, что `perf_counter_ns()` |
+| `sleep(sec)` | ничего; ждёт `sec` секунд, можно дробных |
+| `time_function(f)` | `Int`, сколько наносекунд работала функция `f` |
+
+Все счётчики монотонные: перевод системных часов на них не влияет.
+Отсчёт у них начинается с произвольного момента, поэтому
+по отдельности их значения ничего не значат, смысл имеет только разность.
+А вот **текущей даты и времени суток в `std.time` нет**: нет ни
+`time.time()`, ни модуля `datetime`. Их берут из Python:
+
+```mojo
+from std.python import Python
+
+
+def main() raises:
+    var datetime = Python.import_module("datetime")
+    var now = datetime.datetime.now()
+    print("сейчас:", now.strftime("%d.%m.%Y %H:%M"))
+
+    var today = datetime.date.today()
+    var new_year = datetime.date(today.year + 1, 1, 1)
+    print("до Нового года:", (new_year - today).days, "дн.")
+```
+
+{/* вывод-меняется */}
+<Result output={"сейчас: 30.09.2026 10:55\nдо Нового года: 93 дн."} />
+
+Как вызывать Python из Mojo, разобрано в главе
+[«Python из Mojo»](/interop/python-from-mojo/). Для этой задачи
+достаточно `Python.import_module`.
+
+<Aside type="tip" title="Замеры — отдельная наука">
+  Одного `perf_counter_ns()` до и после мало, чтобы честно сравнить
+  скорость: компилятор может выбросить «ненужный» код, а первый запуск
+  медленнее остальных. Как мерить правильно — в главе
+  [«Как честно мерить скорость»](/performance/benchmarking/).
+</Aside>
+
+## Случайные числа
+
+```mojo
+from std.random import random_float64, random_si64, random_ui64, seed, shuffle
+
+
+def main():
+    seed(2026)
+    var dice = List[Int]()
+    for _ in range(10):
+        dice.append(Int(random_si64(1, 6)))  # от 1 до 6 включительно
+    print(dice)
+
+    print(random_float64())  # [0, 1)
+    print(random_float64(10, 20))  # [10, 20)
+
+    var cards: List[String] = ["туз", "король", "дама", "валет"]
+    shuffle(cards)
+    print(cards)
+    print("выпала:", cards[Int(random_ui64(0, UInt64(len(cards) - 1)))])
+```
+
+<Result output={"[4, 5, 1, 3, 4, 4, 2, 6, 3, 3]\n0.315924248910995\n14.16148431147112\n[король, туз, валет, дама]\nвыпала: валет"} />
+
+Генератор написан на самом Mojo (алгоритм Philox), поэтому с одним
+и тем же `seed` он выдаёт одни и те же числа на любой машине. Вы увидите
+ровно тот вывод, что выше.
+
+| Python | Mojo |
+| --- | --- |
+| `random.randint(a, b)` | `Int(random_si64(a, b))` — обе границы включены |
+| `random.random()` | `random_float64()` |
+| `random.uniform(a, b)` | `random_float64(a, b)` |
+| `random.choice(xs)` | `xs[Int(random_ui64(0, UInt64(len(xs) - 1)))]` — список не должен быть пустым |
+| `random.shuffle(xs)` | `shuffle(xs)` |
+| `random.gauss(mu, sigma)` | `randn_float64(mu, sigma)` |
+| `random.seed(n)` | `seed(n)` |
+
+<Aside type="caution" title="Без `seed()` числа одни и те же при каждом запуске">
+  Python при старте сам берёт случайное начальное значение. Mojo — нет:
+  генератор стартует с фиксированного состояния, и программа без `seed`
+  при каждом запуске выдаёт одну и ту же последовательность. Для
+  отладки это удобно, для игры в кости — нет. Вызов `seed()` без
+  аргумента берёт начальное значение из счётчика времени.
+
+  Ещё две оговорки. Состояние генератора одно на всю программу и не
+  защищено от одновременного доступа, поэтому из параллельных потоков
+  его звать нельзя. И это не криптографический генератор: для паролей
+  и токенов он не годится.
+</Aside>
+
+Функция `randint` в Mojo есть, но делает другое: заполняет случайными
+числами готовый буфер. Привычный питоновский вызов не соберётся:
+
+<CompilerError msg="error: no matching function in call to 'randint'">
+  <Fragment slot="meaning">
+    `randint(span, low, high)` заполняет память, а не возвращает одно
+    число. Ниже компилятор перечислит варианты с пометкой `missing
+    required argument`.
+  </Fragment>
+  <Fragment slot="fix">
+    Одно число от `a` до `b` включительно: `Int(random_si64(a, b))`.
+  </Fragment>
+</CompilerError>
+
+## Математика
+
+`abs`, `min`, `max`, `round` и `**` встроены, остальное — в `std.math`:
+
+```mojo
+from std.math import ceil, floor, gcd, isclose, lcm, pi, sqrt
+
+
+def main():
+    print(sqrt(2.0), sqrt(16))
+    print(pi)
+    print(floor(2.7), ceil(2.1), Int(floor(2.7)))
+    print(round(2.5), round(3.5), round(2.567, 2))
+    print(gcd(12, 18), lcm(4, 6))
+    var a = 0.1
+    var b = 0.2
+    print(a + b == 0.3, isclose(a + b, 0.3))
+```
+
+<Result output={"1.4142135623730951 4\n3.141592653589793\n2.0 3.0 2\n2.0 4.0 2.57\n6 12\nFalse True"} />
+
+Отличия от Python:
+
+- **Тип результата — тип аргумента.** `sqrt(16)` от целого — целое `4`,
+  а не `4.0`. `floor(2.7)` и `round(2.5)` от `Float64` дают `Float64`,
+  а в Python — `int`. Нужно целое — `Int(floor(x))`.
+- **`round` округляет половину к чётному**, как и в Python: `2.5` → `2.0`,
+  `3.5` → `4.0`.
+- **`isclose` по умолчанию терпимее.** В Python допуск — 10⁻⁹
+  относительной погрешности. В Mojo — `rtol=1e-05` и `atol=1e-08`:
+  значения как в NumPy. Для точных сравнений задайте допуск явно:
+  `isclose(a, b, rtol=1e-12)`.
+
+В `std.math` есть и остальное: `exp`, `log`, `log2`, `log10`,
+тригонометрия, `hypot`, `factorial`, `comb`, `clamp`, `ceildiv`
+(деление с округлением вверх), константы `pi`, `e`, `tau`.
+
+<Aside type="caution" title="`exp`, `log` и дробная степень — приближённые">
+  Эти функции в `std.math` написаны ради скорости: они работают сразу
+  над целым SIMD-вектором и считают по приближённым формулам. Для
+  `Float64` результат расходится с Python уже в десятом–тринадцатом знаке:
+
+```mojo
+from std.math import exp, log, sqrt
+from std.python import Python
+
+
+def main() raises:
+    var pymath = Python.import_module("math")
+    print("Mojo:  ", log(10.0), exp(1.0), 2.0**0.5)
+    print("Python:", pymath.log(10), pymath.exp(1), pymath.sqrt(2))
+    print(sqrt(2.0))
+```
+
+<Result output={"Mojo:   2.3025850927331404 2.718281828459813 1.4142135623734946\nPython: 2.302585092994046 2.718281828459045 1.4142135623730951\n1.4142135623730951"} />
+
+  Для физики и графики этого хватает с запасом. Но если вы переносите
+  расчёт с Python и сверяете ответы до последней цифры, они не совпадут.
+  Сравнивайте через `isclose`, а корень берите функцией `sqrt` — она
+  точная.
+</Aside>
+
+## Ввод с клавиатуры
+
+`input()` работает как в Python: печатает подсказку и возвращает
+введённую строку без перевода строки. Разбор числа бросает исключение,
+поэтому ввод удобно обернуть в цикл:
+
+```mojo
+def ask_int(prompt: String) raises -> Int:
+    while True:
+        var line = input(prompt)
+        try:
+            return Int(line.strip())
+        except:
+            print("нужно целое число, попробуйте ещё раз")
+```
+
+```text
+Сколько вам лет? двадцать
+нужно целое число, попробуйте ещё раз
+Сколько вам лет? 25
+```
+
+Когда ввод кончился — пользователь нажал `Ctrl+D` или данные пришли
+из файла и закончились, — `input()` бросает ошибку с текстом `EOF`.
+
+<Aside type="caution" title="Через конвейер работает только первый `input()`">
+  В Mojo 1.1 каждый вызов `input()` заново открывает стандартный ввод,
+  а открытый поток забирает в свой буфер сразу всё, что пришло. С клавиатуры
+  строки приходят по одной, и всё работает. А если подать ввод
+  конвейером, первый `input()` заберёт в буфер обе строки, и второму
+  ничего не останется:
+
+```text
+$ printf 'Аня\n25\n' | ./ask
+Как вас зовут? Сколько вам лет? stack trace was not collected. …
+Unhandled exception caught during execution: EOF
+```
+
+  Программе, которая читает данные из конвейера или файла, `input()`
+  не подходит. Прочитайте весь ввод разом —
+  `open("/dev/stdin", "r").read()` — и разбейте на строки через
+  `splitlines()`. Так сделано в проекте
+  [«Утилита командной строки»](/projects/cli-tool/#чтение-файлов-и-стандартного-ввода).
+</Aside>
+
+## Внешние команды
+
+`run` из `std.subprocess` запускает команду через оболочку
+и возвращает её вывод строкой, без завершающих пробелов и переводов строк:
+
+```mojo
+from std.subprocess import run
+
+
+def main() raises:
+    var out = run("echo привет; echo мир")
+    print(out.replace("\n", " | "))
+
+    # код возврата run() не проверяет — спросите его у оболочки сами
+    print("код:", run("grep -q mojo /dev/null; echo $?"))
+    print("исключения нет:", run("exit 3") == "")
+```
+
+<Result output={"привет | мир\nкод: 1\nисключения нет: True"} />
+
+Это аналог `subprocess.check_output(cmd, shell=True)` с тремя
+отличиями: код возврата не проверяется, результат — `String`, а не
+`bytes`, и пробелы с переводами строк в конце обрезаны. Поток ошибок
+команды, как и в Python, не перехватывается и идёт прямо в терминал.
+Команда проходит через оболочку, поэтому не подставляйте в неё
+непроверенный ввод пользователя.
+
+## Чего нет и что делать
+
+| Нужно | В Python | В Mojo 1.1 |
+| --- | --- | --- |
+| дата и время суток | `datetime` | Python: `datetime` |
+| JSON | `json` | Python: `json` |
+| регулярные выражения | `re` | Python: `re`; для простого — методы строк |
+| CSV | `csv` | для простого — `split(",")`; с кавычками — Python: `csv` |
+| разбор аргументов | `argparse` | цикл по `argv()`, как в [утилите](/projects/cli-tool/) |
+| HTTP, сокеты | `urllib`, `socket` | Python |
+
+Кое-что из питоновских `collections` и соседних модулей зато есть:
+`Counter` и `Deque` в `std.collections`, `b64encode` и `b64decode`
+в `std.base64`, `count`, `product` и `cycle` в `std.itertools`:
+
+```mojo
+from std.base64 import b64decode, b64encode
+from std.collections import Counter, Deque
+
+
+def main() raises:
+    var words = "мяч кот мяч дом мяч кот".split(" ")
+    var counts = Counter[String]()
+    for w in words:
+        counts[String(w)] += 1
+    for item in counts.most_common(2):
+        print(item[0], item[1])
+
+    var queue = Deque[Int]()
+    queue.append(1)
+    queue.append(2)
+    queue.appendleft(0)
+    print(queue.popleft(), queue.pop(), len(queue))
+
+    var code = b64encode("Mojo")
+    print(code, len(b64decode(code)))
+```
+
+<Result output={"мяч 3\nкот 2\n0 2 1\nTW9qbw== 4"} />
+
+Для остального есть Python: из Mojo он вызывается почти так же, как
+из самого Python. JSON, например:
+
+```mojo
+from std.python import Python
+
+
+def main() raises:
+    var json = Python.import_module("json")
+    var data = json.loads('{"name": "Mojo", "version": [1, 1], "fast": true}')
+    var name = String(py=data["name"])
+    var major = Int(py=data["version"][0])
+    print(name, major, data["fast"])
+
+    var out = Python.dict()
+    out["язык"] = "Mojo"
+    out["глав"] = 42
+    print(json.dumps(out, ensure_ascii=False))
+```
+
+<Result output={"Mojo 1 True\n{\"язык\": \"Mojo\", \"глав\": 42}"} />
+
+За удобство платят скоростью: каждый вызов Python идёт через
+интерпретатор. Для конфигурации, дат и разбора аргументов это
+неважно. А в горячем цикле лучше один раз перевести данные
+в `List` и `Dict` Mojo и дальше работать с ними. Сколько стоит переход
+границы, измерено в главе
+[«Python из Mojo»](/interop/python-from-mojo/#сколько-стоит-переход-границы).
+
+Готовые библиотеки на Mojo, которых нет в стандартной, ищите
+в [сообществе](/reference/resources/#библиотеки).
+
+<Quiz>
+  <QuizItem q="Почему `from math import sqrt` не компилируется в Mojo 1.1?">
+    С версии 1.0 модули стандартной библиотеки импортируются только
+    с префиксом `std.`: `from std.math import sqrt`. Без префикса
+    компилятор ищет ваш собственный модуль `math` и не находит его.
+  </QuizItem>
+  <QuizItem q="Как прочитать текстовый файл построчно?">
+    Прочитать целиком — `f.read()` или `Path(p).read_text()` — и разбить
+    методом `splitlines()`. Итерировать `FileHandle` и вызывать
+    `readline()` в Mojo 1.1 нельзя.
+  </QuizItem>
+  <QuizItem q="Чем опасен `f.read(10)` для файла с русским текстом?">
+    Аргумент — число байтов, а не букв. Если граница придётся на середину
+    двухбайтовой буквы, `read` бросит ошибку про неправильный UTF-8.
+  </QuizItem>
+  <QuizItem q="Программа без `seed` бросает кубик. Что будет при повторных запусках?">
+    Одни и те же числа: генератор стартует с фиксированного состояния.
+    Чтобы числа менялись от запуска к запуску, вызовите `seed()` без
+    аргумента — он возьмёт начальное значение из счётчика времени.
+  </QuizItem>
+  <QuizItem q="Как получить текущую дату?">
+    В стандартной библиотеке Mojo нет ни `datetime`, ни часов реального
+    времени. Берите питоновский модуль:
+    `Python.import_module("datetime").datetime.now()`.
+  </QuizItem>
+  <QuizItem q="Почему `log(10.0)` в Mojo и `math.log(10)` в Python дают разные последние цифры?">
+    В `std.math` функции `exp` и `log` считают по быстрым приближённым
+    формулам, рассчитанным на SIMD. Для `Float64` расхождение появляется
+    в десятом–тринадцатом знаке. Сравнивайте такие числа через `isclose`.
+  </QuizItem>
+</Quiz>
+
+## Что дальше
+
+Последняя глава базового раздела — [модули и пакеты](/basics/modules/):
+как разложить свой код по файлам и собрать из них библиотеку.

@@ -92,6 +92,7 @@ def main():
 | `EqualityComparable` | `Equatable` | переименован |
 | `GreaterThanComparable` | `Comparable` | поглощён: хватает одного `__lt__` |
 | `CollectionElement` | `Movable` | `List` больше не требует копируемости |
+| `from math import sqrt`, `from collections import Dict` | `from std.math import sqrt`; `Dict` не нужно импортировать | с 1.0 стандартная библиотека импортируется только с префиксом `std.`: `unable to locate module 'math'` |
 | `mojo package`, файлы `.mojopkg` | `mojo precompile`, файлы `.mojoc` | переименована команда и расширение |
 
 ### Установка и инструменты

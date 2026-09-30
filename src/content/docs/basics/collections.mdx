@@ -26,6 +26,10 @@ import QuizItem from '../../../components/QuizItem.astro';
 | `tuple` | `Tuple[...]`, запись `(1, "a")` | не нужен |
 | значение или `None` | `Optional[T]` | не нужен |
 | «что угодно» в одном списке | `Variant[A, B, ...]` | `from std.utils import Variant` |
+| `collections.Counter`, `collections.deque` | `Counter[T]`, `Deque[T]` | `from std.collections import Counter, Deque` |
+
+`Counter` и `Deque` устроены как в Python; пример с ними — в следующей
+главе, в разделе [«Чего нет и что делать»](/basics/stdlib/#чего-нет-и-что-делать).
 
 ## Список: `List`
 
@@ -365,5 +369,6 @@ def main():
 
 ## Что дальше
 
-Последняя глава базового раздела — [модули и пакеты](/basics/modules/):
-как разложить код по файлам.
+Коллекции есть — пора научиться наполнять их данными извне. Следующая
+глава — [стандартная библиотека на каждый день](/basics/stdlib/): файлы,
+пути, время, случайные числа и то, чего в ней нет.

@@ -102,6 +102,13 @@ Mojo печатает не одну строку, а несколько: сна�
 папки импортируется через точку: `from shapes.circle import Circle`.
 → [Модули и пакеты](/basics/modules/)
 
+**`` error: unable to locate module 'math' ``**
+
+Модуль стандартной библиотеки без префикса `std.` — так писали до
+Mojo 1.0. Теперь нужно `from std.math import sqrt`; то же для `random`,
+`collections`, `time` и остальных.
+→ [Стандартная библиотека на каждый день](/basics/stdlib/)
+
 **`` error: module does not define a `main` function ``**
 
 Вы запускаете файл-модуль, в котором нет точки входа. Запускайте
@@ -190,6 +197,18 @@ t-строка — ленивый шаблон, а не `String`. Функции
 
 `min` и `max` сравнивают отдельные значения, а не элементы списка.
 Минимум списка ищется циклом. → [Коллекции и итераторы](/basics/collections/)
+
+**`` error: no matching function in call to 'randint' ``**
+
+`randint` в Mojo заполняет случайными числами буфер, а не возвращает одно
+число. Аналог питоновского `random.randint(1, 6)` — `Int(random_si64(1, 6))`.
+→ [Стандартная библиотека на каждый день](/basics/stdlib/#случайные-числа)
+
+**`` error: 'time' does not implement the '__call__' method ``**
+
+`from std.time import time` импортирует модуль, а не функцию: функции
+`time()` в Mojo нет. Для замеров — `perf_counter_ns()`, для текущей даты —
+питоновский `datetime`. → [Стандартная библиотека на каждый день](/basics/stdlib/#время)
 
 ## Функции и аргументы
 
@@ -387,6 +406,14 @@ Mojo допишет `execution crashed`. → [Обработка ошибок](/
 
 `value()` у пустого `Optional`. Проверяйте `if maybe:` перед чтением
 или используйте `maybe.or_else(0)`. → [Обработка ошибок](/basics/errors/)
+
+**`` Unhandled exception caught during execution: EOF ``**
+
+`input()` не получил ни строки: ввод закончился (`Ctrl+D`) или его
+не было вовсе, например под отладчиком. Если ввод подаётся конвейером,
+в Mojo 1.1 данные получает только первый `input()`. Читайте такой ввод
+целиком через `open("/dev/stdin", "r").read()`.
+→ [Стандартная библиотека на каждый день](/basics/stdlib/#ввод-с-клавиатуры)
 
 **`` error: execution crashed ``**
 
