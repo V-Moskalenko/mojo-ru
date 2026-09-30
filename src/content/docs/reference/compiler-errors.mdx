@@ -248,6 +248,13 @@ t-строка — ленивый шаблон, а не `String`. Функции
 `def times(x: Int) {imm k} -> Int:`.
 → [Замыкания и лямбды](/performance/closures/)
 
+**`` error: 'c' abandoned without being explicitly destroyed: type 'Coroutine' does not conform to 'Deinitable' and must be explicitly destroyed ``**
+
+Вызвали `async def` без `await`, как иногда бывает в Python. Результат
+такого вызова — корутина, которая ещё ничего не сделала, и выбросить её
+молча нельзя. Добавьте `await`. Учтите, что `async` в Mojo 1.1
+нестабилен. → [Потоки, процессы и async](/performance/concurrency/#async-пока-в-разработке)
+
 ## Исключения
 
 **`` error: cannot call function that may raise in a context that cannot raise ``**

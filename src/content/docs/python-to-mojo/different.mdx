@@ -360,6 +360,8 @@ uv run mojo build main.mojo   # получить исполняемый файл
 | Исключения где угодно | Функция помечается `raises` |
 | `lambda x: x + 1` | `lambda (x: Int) -> Int: x + 1` |
 | `x = 1` | `var x = 1` |
+| `threading`, `multiprocessing` | GIL нет: пул потоков `parallelize` занимает все ядра |
+| `asyncio` | в 1.1 нет: `async` нестабилен |
 
 <Quiz>
   <QuizItem q="Почему в Mojo нельзя просто написать len(строки)?">

@@ -39,6 +39,7 @@ Python славится «батарейками в комплекте»: в с�
 | `math` | `std.math` | функции и константы |
 | `tempfile` | `std.tempfile` | временные файлы и каталоги |
 | `subprocess` | `std.subprocess` | только `run` |
+| `threading`, `multiprocessing`, `asyncio` | см. главу [«Потоки, процессы и async»](/performance/concurrency/) | |
 | `datetime`, `json`, `re`, `csv`, `argparse` | нет | см. [«Чего нет»](#чего-нет-и-что-делать) |
 
 Модули стандартной библиотеки импортируются **только с префиксом
@@ -244,7 +245,7 @@ def main() raises:
 <Result output={"сейчас: 30.09.2026 10:55\nдо Нового года: 93 дн."} />
 
 Как вызывать Python из Mojo, разобрано в главе
-[«Python из Mojo»](/interop/python-from-mojo/). Для этой задачи
+[«Вызов Python из Mojo»](/interop/python-from-mojo/). Для этой задачи
 достаточно `Python.import_module`.
 
 <Aside type="tip" title="Замеры — отдельная наука">
@@ -520,7 +521,7 @@ def main() raises:
 неважно. А в горячем цикле лучше один раз перевести данные
 в `List` и `Dict` Mojo и дальше работать с ними. Сколько стоит переход
 границы, измерено в главе
-[«Python из Mojo»](/interop/python-from-mojo/#сколько-стоит-переход-границы).
+[«Вызов Python из Mojo»](/interop/python-from-mojo/#сколько-стоит-переход-границы).
 
 Готовые библиотеки на Mojo, которых нет в стандартной, ищите
 в [сообществе](/reference/resources/#библиотеки).

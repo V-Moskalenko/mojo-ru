@@ -537,6 +537,12 @@ def main():
 [Векторизация и параллелизм](/performance/vectorize-parallelize/),
 [Замыкания и лямбды](/performance/closures/).
 
+Общую переменную из нескольких потоков менять нельзя: компилятор это
+пропустит, а ответ будет неверным. Счётчик — `Atomic[Int]` из
+`std.atomic`, общий список — под `BlockingSpinLock` из `std.utils`,
+а быстрее всего — своя ячейка на каждый поток. GIL нет, `async`
+в 1.1 нестабилен. Подробнее: [Потоки, процессы и async](/performance/concurrency/).
+
 ## Python из Mojo
 
 ```mojo
