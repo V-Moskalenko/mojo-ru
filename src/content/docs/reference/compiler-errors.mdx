@@ -180,6 +180,17 @@ t-строка — ленивый шаблон, а не `String`. Функции
 `String`, передайте `String(t"...")`.
 → [Строки и Unicode](/basics/strings/#форматирование-t-строки-и-format)
 
+**`` error: 'List[Int]' value has no attribute 'sort' ``**
+
+Метода `sort` у списка нет: сортирует функция `sort(xs)`, на месте.
+Функции `sorted` тоже нет — нужна копия, делайте `xs.copy()` и сортируйте её.
+→ [Коллекции и итераторы](/basics/collections/)
+
+**`` error: no matching function in call to 'min' ``**
+
+`min` и `max` сравнивают отдельные значения, а не элементы списка.
+Минимум списка ищется циклом. → [Коллекции и итераторы](/basics/collections/)
+
 ## Функции и аргументы
 
 **`` error: expression must be mutable for in-place operator destination ``**

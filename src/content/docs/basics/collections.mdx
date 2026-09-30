@@ -1,0 +1,369 @@
+---
+title: Коллекции и итераторы
+description: "List, Dict, Set, Tuple, Optional и Variant в Mojo 1.1: чем они отличаются от питоновских list, dict, set и tuple, каких методов нет и чем их заменить, и как написать свой итератор для цикла for."
+sidebar:
+  order: 10
+mojoVersion: 1.1.0
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Result from '../../../components/Result.astro';
+import CompilerError from '../../../components/CompilerError.astro';
+import Quiz from '../../../components/Quiz.astro';
+import QuizItem from '../../../components/QuizItem.astro';
+
+Всё, чем вы пользуетесь в Python каждый день, в Mojo есть: список,
+словарь, множество, кортеж. Главное отличие одно — **у списка, словаря
+и множества есть тип элементов**, и он один на всю коллекцию. Список чисел хранит числа
+подряд в памяти, без обёрток вокруг каждого, — отсюда и скорость,
+и требование однородности.
+
+| Python | Mojo | Импорт |
+| --- | --- | --- |
+| `list` | `List[T]` | не нужен |
+| `dict` | `Dict[K, V]` | не нужен |
+| `set` | `Set[T]` | `from std.collections import Set` |
+| `tuple` | `Tuple[...]`, запись `(1, "a")` | не нужен |
+| значение или `None` | `Optional[T]` | не нужен |
+| «что угодно» в одном списке | `Variant[A, B, ...]` | `from std.utils import Variant` |
+
+## Список: `List`
+
+```mojo
+def main() raises:  # index() бросает ошибку, если элемента нет
+    var xs: List[Int] = [3, 1, 2]
+    xs.append(5)  # в конец
+    xs.insert(0, 9)  # на позицию 0
+    xs.extend([7, 8])  # несколько сразу
+    xs += [4]  # то же через +=
+    print(xs, "длина", len(xs))
+
+    print(xs[0], xs[len(xs) - 1])  # первый и последний
+    print(xs[1:4], xs[::2])  # срезы — как в Python
+    print(xs.index(5), xs.count(1), 2 in xs)
+
+    var last = xs.pop()  # снять с конца
+    var first = xs.pop(0)  # снять по индексу
+    print(last, first, xs)
+
+    sort(xs)  # сортировка — функция, а не метод
+    print(xs)
+    xs.reverse()
+    print(xs)
+```
+
+<Result output={"[9, 3, 1, 2, 5, 7, 8, 4] длина 8\n9 4\n[3, 1, 2] [9, 1, 5, 8]\n4 1 True\n4 9 [3, 1, 2, 5, 7, 8]\n[1, 2, 3, 5, 7, 8]\n[8, 7, 5, 3, 2, 1]"} />
+
+Почти всё — как в Python: `append`, `insert`, `extend`, `pop`, `index`,
+`count`, `in`, срезы с шагом. Метод `index` бросает ошибку, если элемента
+нет, поэтому `main` здесь помечена `raises`. Отличий немного, но
+на каждое питонист наткнётся:
+
+| Python | Mojo | Почему |
+| --- | --- | --- |
+| `xs = [3, 1, 2]` | `var xs: List[Int] = [3, 1, 2]` | без аннотации получится `Array[Int, 3]` фиксированной длины |
+| `xs[-1]` | `xs[len(xs) - 1]` | отрицательных индексов нет |
+| `xs.sort()`, `sorted(xs)` | `sort(xs)` | сортировка — функция, и она меняет сам список |
+| `xs.remove(x)` | `_ = xs.pop(xs.index(x))` | метода `remove` нет |
+| `sum(xs)`, `min(xs)` | цикл | `min` и `max` работают для отдельных значений, не для списка |
+| `ys = xs` | `ys = xs.copy()` или `ys = xs^` | список не копируется молча |
+| `xs + ys`, `xs += ys` | `xs + ys.copy()`, `xs += ys^` | `+` и `+=` забирают правый список себе: копируйте или отдайте его |
+
+Если попробовать `xs.sort()`, компилятор ответит прямо:
+
+<CompilerError msg="error: 'List[Int]' value has no attribute 'sort'">
+  <Fragment slot="meaning">
+    У `List` нет метода `sort`. Сортирует свободная функция `sort`,
+    и она меняет список на месте.
+  </Fragment>
+  <Fragment slot="fix">
+    Пишите `sort(xs)`. Нужна отсортированная копия, а исходный список
+    должен остаться как был — сначала `var ys = xs.copy()`, потом
+    `sort(ys)`.
+  </Fragment>
+</CompilerError>
+
+Список может хранить что угодно, в том числе другие списки:
+`List[List[Int]]` — это двумерная таблица, и `grid[1][0] = 30` меняет
+в ней одну ячейку. А чтобы изменить элементы прямо в цикле, нужен
+`for ref x in xs` — об этом в главе
+[«Управляющие конструкции»](/basics/control-flow/).
+
+## Словарь: `Dict`
+
+```mojo
+def main():
+    var ages: Dict[String, Int] = {"Аня": 30, "Борис": 25}
+    ages["Вера"] = 41  # добавить или заменить
+    print(ages, len(ages))
+    print(
+        "Аня" in ages, ages.get("Глеб", 0)
+    )  # проверка и значение по умолчанию
+
+    var maybe = ages.get("Глеб")  # без запасного значения — Optional
+    print("Глеб найден:", Bool(maybe))
+
+    print("ушёл Борис, ему было", ages.pop("Борис", 0))
+    for name in ages:  # перебор идёт по ключам
+        print(" ", name, end="")
+    print()
+    for item in ages.items():  # и ключ, и значение
+        print(" ", item.key, "->", item.value)
+
+    # Частотный словарь — классика
+    var counts = Dict[String, Int]()
+    for word in "мама мыла раму мама".split(" "):
+        counts[String(word)] = counts.get(String(word), 0) + 1
+    print(counts)
+
+    var squares: Dict[Int, Int] = {n: n * n for n in range(1, 5)}
+    print(squares)
+
+    try:
+        print(ages["Глеб"])  # такого ключа нет
+    except e:
+        print("ошибка:", e)
+```
+
+<Result output={"{Аня: 30, Борис: 25, Вера: 41} 3\nTrue 0\nГлеб найден: False\nушёл Борис, ему было 25\n  Аня  Вера\n  Аня -> 30\n  Вера -> 41\n{мама: 2, мыла: 1, раму: 1}\n{1: 1, 2: 4, 3: 9, 4: 16}\nошибка: DictKeyError[String]()"} />
+
+Словарь помнит порядок добавления — как в Python начиная с 3.7.
+Перебор `for name in ages` идёт по ключам, `items()` даёт пары, у каждой
+есть `key` и `value`.
+
+Два способа прочитать значение ведут себя по-разному:
+
+- **`ages[key]`** бросает ошибку, если ключа нет. Это типизированная
+  ошибка `DictKeyError`, и функция, где она может возникнуть, должна
+  быть `raises` или обернуть чтение в `try`.
+- **`ages.get(key, 0)`** не бросает ничего: вернёт запасное значение.
+  А `ages.get(key)` без запасного значения возвращает `Optional` —
+  о нём ниже.
+
+То же с удалением: `pop(key)` бросает ошибку, если ключа нет,
+а `pop(key, 0)` — нет.
+
+<Aside type="tip" title="Ключом может быть не всё">
+  Ключ словаря и элемент множества должны уметь сравниваться на равенство
+  и вычислять хеш: строки, целые числа и `Bool` подходят. Требования
+  собраны в трейте `KeyElement`. Свою структуру сделать ключом просто —
+  объявить `KeyElement` в списке её трейтов, как в разделе
+  [«Ключ словаря»](/basics/structs/#ключ-словаря) главы о структурах.
+</Aside>
+
+## Множество: `Set`
+
+```mojo
+from std.collections import Set
+
+
+def main():
+    var python_fans: Set[String] = {"Аня", "Борис", "Вера"}
+    var mojo_fans: Set[String] = {"Вера", "Глеб"}
+    mojo_fans.add("Аня")
+    print("оба языка:", python_fans & mojo_fans)
+    print("хоть один:", python_fans | mojo_fans)
+    print("только Python:", python_fans - mojo_fans)
+    print("Глеб любит Mojo:", "Глеб" in mojo_fans)
+
+    var remainders: Set[Int] = {n % 3 for n in range(10)}
+    print(remainders, len(remainders))
+```
+
+<Result output={"оба языка: {Аня, Вера}\nхоть один: {Аня, Борис, Вера, Глеб}\nтолько Python: {Борис}\nГлеб любит Mojo: True\n{0, 1, 2} 3"} />
+
+Операции `|` (объединение), `&` (пересечение), `-` (разность) и `^`
+(симметрическая разность) — как в Python. Методы `add`, `remove`,
+`discard` и `pop` тоже есть; `remove` и `pop` бросают ошибку, если
+удалять нечего, а `discard` — нет. Порядок элементов множества не обещан:
+сейчас он совпадает с порядком добавления, но это деталь реализации.
+
+Литерал `{...}` без аннотации тоже становится множеством, но тип лучше
+указать, как и у списка.
+
+## Кортеж: `Tuple`
+
+```mojo
+def min_max(xs: List[Int]) -> Tuple[Int, Int]:
+    var lo = xs[0]
+    var hi = xs[0]
+    for x in xs:
+        lo = min(lo, x)
+        hi = max(hi, x)
+    return (lo, hi)
+
+
+def main():
+    var record = (42, "ответ", 3.14)  # разные типы в одном кортеже
+    print(record[0], record[1], record[2])
+
+    var lo, hi = min_max([5, 2, 9, 4])  # распаковка
+    print(lo, hi)
+
+    record[0] = 7  # кортеж в Mojo можно менять!
+    print(record[0])
+```
+
+<Result output={"42 ответ 3.14\n2 9\n7"} />
+
+В кортеже могут быть значения разных типов, и функция может вернуть
+кортеж, чтобы отдать несколько значений сразу. Распаковка работает
+как в Python.
+
+<Aside type="caution" title="Кортеж в Mojo изменяемый">
+  В Python кортеж неизменяемый, и `t[0] = 7` — ошибка. В Mojo
+  это обычное присваивание: кортеж — просто несколько значений рядом,
+  а не особый «замороженный» объект.
+</Aside>
+
+## Значение или ничего: `Optional`
+
+В Python функция, которой нечего вернуть, возвращает `None`. В Mojo
+для этого есть `Optional[T]`: либо значение типа `T`, либо ничего.
+А если в одной коллекции нужны значения разных типов, помогает
+`Variant`:
+
+```mojo
+from std.utils import Variant
+
+
+def find_age(name: String) -> Optional[Int]:
+    if name == "Аня":
+        return 30
+    return None
+
+
+comptime Cell = Variant[Int, String]
+
+
+def show(cell: Cell) -> String:
+    if cell.isa[Int]():
+        return String("число ", cell[Int])
+    return String("текст «", cell[String], "»")
+
+
+def main():
+    for name in ["Аня", "Глеб"]:
+        var age = find_age(name)
+        if age:
+            print(name, "—", age.value())
+        else:
+            print(name, "— неизвестно, по умолчанию", age.or_else(18))
+
+    var row: List[Cell] = [1, "два", 3]  # разнородный список
+    var total = 0
+    for cell in row:
+        print(show(cell))
+        if cell.isa[Int]():
+            total += cell[Int]
+    print("сумма чисел:", total)
+```
+
+<Result output={"Аня — 30\nГлеб — неизвестно, по умолчанию 18\nчисло 1\nтекст «два»\nчисло 3\nсумма чисел: 4"} />
+
+**`Optional`.** Возвращать можно прямо `30` или `None` — компилятор
+завернёт их сам. `if age:` проверяет, есть ли значение, `value()`
+достаёт его, а `or_else(18)` подставляет запасное. Вызвать `value()`
+у пустого `Optional` — ошибка времени выполнения, программа
+остановится. Когда стоит возвращать `Optional`, а когда бросать
+исключение, разобрано в главе [«Обработка ошибок»](/basics/errors/).
+
+**`Variant`.** `Variant[Int, String]` хранит одно из перечисленных:
+либо число, либо строку. `isa[Int]()` проверяет, что внутри, `cell[Int]`
+достаёт значение. Длинный тип удобно назвать через `comptime`:
+`comptime Cell = Variant[Int, String]`. Литерал `[1, "два", 3]` сам
+превращается в список вариантов — каждое значение заворачивается
+в `Cell`.
+
+`Variant` — ответ сразу на два вопроса питониста: как положить в один
+список разные типы и чем заменить `match`, которого в Mojo нет. Цепочка
+`if cell.isa[...]()` делает то же, что `match` по типу в Python.
+
+## Свой итератор
+
+Цикл `for` работает с любым типом, у которого есть метод `__iter__`,
+а тот возвращает **итератор** — значение с методом `__next__`. Каждый
+вызов `__next__` выдаёт следующий элемент, а когда элементы кончились,
+бросает `StopIteration`. Напишем обратный отсчёт:
+
+```mojo
+@fieldwise_init
+struct Countdown(Iterator):
+    """Считает от start вниз до 1."""
+
+    comptime Element = Int  # тип того, что выдаёт итератор
+    var current: Int
+
+    def __iter__(var self) -> Self:  # var: забирает себя целиком
+        return self^  # итератор сам себе источник
+
+    def __next__(mut self) raises StopIteration -> Int:
+        if self.current == 0:
+            raise StopIteration()  # элементы кончились
+        self.current -= 1
+        return self.current + 1
+
+
+def main():
+    for n in Countdown(3):
+        print(n, end=" ")
+    print("старт!")
+
+    var steps = Countdown(2)
+    try:
+        print(next(steps), next(steps))
+        print(next(steps))
+    except:
+        print("больше элементов нет")
+```
+
+<Result output={"3 2 1 старт!\n2 1\nбольше элементов нет"} />
+
+Что здесь нужно:
+
+- **Трейт `Iterator`** и строка `comptime Element = Int` — тип
+  элементов, которые выдаёт итератор.
+- **`__next__(mut self) raises StopIteration -> Int`** — `mut self`,
+  потому что итератор меняет своё состояние, и типизированная ошибка
+  `StopIteration`, которой он сообщает, что элементы кончились.
+  Ловить её в `for` не нужно: цикл сделает это сам.
+- **`__iter__`** — то, что вызывает `for`. Наш итератор возвращает сам
+  себя.
+
+Функция `next()`, доступная без импорта, вызывает `__next__` вручную —
+удобно, когда нужны один-два элемента, а не весь цикл.
+
+Коллекции работают по тому же протоколу, только их `__iter__` не отдаёт
+себя, а создаёт отдельный итератор, который заимствует коллекцию
+и выдаёт не копии элементов, а ссылки на них. Поэтому `for x in xs` ничего не копирует, а
+`for ref x in xs` позволяет элементы менять.
+
+<Quiz>
+  <QuizItem q="Почему `var nums = [3, 1, 2]` и затем `nums.append(4)` не компилируется?">
+    Без аннотации литерал в квадратных скобках становится `Array[Int, 3]` —
+    массивом фиксированной длины, у которого нет `append`. Нужен
+    `var nums: List[Int] = [3, 1, 2]`.
+  </QuizItem>
+  <QuizItem q="Как отсортировать список, сохранив исходный?">
+    Сначала копия, потом сортировка: `var ys = xs.copy()`, затем `sort(ys)`.
+    Функция `sort` меняет список на месте, а метода `sort` и функции
+    `sorted` в Mojo нет.
+  </QuizItem>
+  <QuizItem q="Чем `d[key]` отличается от `d.get(key, 0)` и от `d.get(key)`?">
+    `d[key]` бросает ошибку `DictKeyError`, если ключа нет. `d.get(key, 0)`
+    вернёт запасное значение и ничего не бросает. `d.get(key)` возвращает
+    `Optional`: значение, если ключ есть, и пустой `Optional`, если нет.
+  </QuizItem>
+  <QuizItem q="Как хранить в одном списке и числа, и строки?">
+    Через `Variant`: `List[Variant[Int, String]]`. Проверять, что лежит
+    в элементе, — `isa[Int]()`, доставать — `item[Int]`.
+  </QuizItem>
+  <QuizItem q="Что должен сделать `__next__`, когда элементы кончились?">
+    Бросить `StopIteration()`. Цикл `for` поймает её сам и завершится.
+  </QuizItem>
+</Quiz>
+
+## Что дальше
+
+Последняя глава базового раздела — [модули и пакеты](/basics/modules/):
+как разложить код по файлам.
