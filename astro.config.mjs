@@ -7,6 +7,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { unified } from '@astrojs/markdown-remark';
 import { rehypeBaseLinks } from './src/plugins/rehype-base-links.mjs';
 
 /**
@@ -134,8 +135,11 @@ export default defineConfig({
   base: BASE,
   trailingSlash: 'always',
   markdown: {
-    // внутренние ссылки в тексте глав получают базовый путь автоматически
-    rehypePlugins: [rehypeBaseLinks(BASE)],
+    // Свои rehype-плагины с Astro 7.3 подключаются через процессор unified:
+    // по умолчанию Markdown теперь разбирает Sätteri, и markdown.rehypePlugins
+    // без явного процессора устарели.
+    // Внутренние ссылки в тексте глав получают базовый путь автоматически.
+    processor: unified({ rehypePlugins: [rehypeBaseLinks(BASE)] }),
   },
   integrations: [
     /**
@@ -192,7 +196,6 @@ export default defineConfig({
       title: 'Mojo по-русски',
       // hreflang только для страниц с настоящим переводом — см. src/routeData.ts
       routeMiddleware: './src/routeData.ts',
-      tagline: 'Полный курс по языку Mojo на русском языке',
       description:
         'Бесплатный учебник по языку программирования Mojo на русском языке: установка на Windows через WSL, настройка VS Code, основы синтаксиса, владение значениями, SIMD и практические проекты.',
       logo: {
