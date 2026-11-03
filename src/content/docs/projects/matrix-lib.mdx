@@ -1,9 +1,9 @@
 ---
 title: "Проект: матричная библиотека"
-description: "Умножение матриц на Mojo 1.1 шаг за шагом: от долей GFLOPS наивной версии почти до уровня OpenBLAS — проверки границ, указатели, SIMD, потоки, упаковка данных и блок в регистрах. С честным сравнением с NumPy на двух машинах."
+description: "Умножение матриц на Mojo шаг за шагом: от долей GFLOPS наивной версии почти до уровня OpenBLAS — проверки границ, указатели, SIMD, потоки, упаковка данных и блок в регистрах. С честным сравнением с NumPy на двух машинах."
 sidebar:
   order: 2
-mojoVersion: 1.1.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -94,7 +94,8 @@ def check_shapes(a: Matrix, b: Matrix) raises:
 
 <Aside type="caution" title="`ref`, `case` и `match` — не имена переменных">
   Хотелось назвать эталонный результат `ref`, а переменную в цикле —
-  `case`. Не выйдет: это ключевые слова Mojo (как и `match`), и
+  `case`. Не выйдет: это ключевые слова Mojo (как и `match`, на них
+  построено [сопоставление с образцом](/basics/control-flow/#сопоставление-с-образцом-match)), и
   `var ref = ...` даёт непонятное `error: unexpected token in expression`.
   В Python `match` и `case` — «мягкие» ключевые слова, их можно
   использовать как имена; в Mojo нельзя. Если на ровном месте

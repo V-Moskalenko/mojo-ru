@@ -3,7 +3,7 @@ title: Операторы
 description: Арифметика, сравнения, логика и побитовые операции в Mojo — и как научить собственную структуру работать с оператором «плюс».
 sidebar:
   order: 6
-mojoVersion: 1.1.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -138,10 +138,10 @@ def main():
 
 <Aside type="caution" title="Переменную для «моржа» объявляйте заранее">
   Без предварительного `var count: Int` строка `if (count := ...)`
-  в Mojo 1.1 не компилируется. Причём сообщение сбивает с толку:
+  в Mojo не компилируется. Причём сообщение сбивает с толку:
 
   ```text
-  error: use of unknown declaration 'count'; did you mean to import it from 'std.itertools'?
+  error: use of unknown declaration 'count'; did you mean to import it from 'std.itertools'? Add 'from std.itertools import count'
   ```
 
   Подсказка про `std.itertools` появилась лишь потому, что там есть функция

@@ -6,6 +6,7 @@ import sitemap from '@astrojs/sitemap';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { rehypeBaseLinks } from './src/plugins/rehype-base-links.mjs';
 
 /**
@@ -31,7 +32,7 @@ const REPO = 'https://github.com/V-Moskalenko/mojo-ru';
  * сам по мере появления переводов.
  */
 function translatedEnglishRoutes() {
-  const dir = new URL('./src/content/docs/en/', import.meta.url).pathname;
+  const dir = fileURLToPath(new URL('./src/content/docs/en/', import.meta.url));
   if (!existsSync(dir)) return new Set();
 
   const routes = new Set();
@@ -63,7 +64,7 @@ const EN_ROUTES = translatedEnglishRoutes();
  * noindex; ссылки на них и навигация при этом работают как обычно.
  */
 function draftRoutes() {
-  const dir = new URL('./src/content/docs/', import.meta.url).pathname.replace(/\/$/, '');
+  const dir = fileURLToPath(new URL('./src/content/docs/', import.meta.url)).replace(/[\\/]$/, '');
   const routes = new Set();
 
   const walk = (current, prefix) => {
@@ -126,7 +127,7 @@ const mojoGrammar = JSON.parse(
 );
 
 /** Версия Mojo, на которой проверены все примеры сайта. */
-export const MOJO_VERSION = '1.1.0';
+export const MOJO_VERSION = '1.2.0';
 
 export default defineConfig({
   site: SITE,
