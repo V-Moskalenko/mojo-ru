@@ -3,7 +3,7 @@ title: Замыкания и лямбды
 description: "Списки захвата в Mojo: пять конвенций, лямбда-выражения, функции высшего порядка и почему компилятор отказывается угадывать."
 sidebar:
   order: 5
-mojoVersion: 1.1.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -405,5 +405,5 @@ def apply[F: def(Int) -> Int, //](value: Int, f: F) -> Int:
 ## Что дальше
 
 Последняя глава раздела — [потоки, процессы и async](/performance/concurrency/):
-как делить работу между ядрами и не сломать общие данные, и что в Mojo 1.1
+как делить работу между ядрами и не сломать общие данные, и что в Mojo
 есть вместо `threading`, `multiprocessing` и `asyncio`.
