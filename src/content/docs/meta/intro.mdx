@@ -3,7 +3,7 @@ title: Введение в метапрограммирование
 description: "Две фазы жизни программы на Mojo: что можно вычислить при сборке, как работают comptime if и comptime for и почему @parameter больше не нужен."
 sidebar:
   order: 1
-mojoVersion: 1.1.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -211,6 +211,56 @@ def main():
   О нём — в главе [Замыкания и лямбды](/performance/closures/).
 </Aside>
 
+## `comptime match`: выбор из нескольких вариантов
+
+Когда вариантов больше двух, цепочка `comptime if` / `elif` превращается
+в лесенку. Для этого есть `comptime match` — то же
+[сопоставление с образцом](/basics/control-flow/#сопоставление-с-образцом-match),
+но выполненное при сборке:
+
+```mojo
+def buffer_plan[n: Int]() -> String:
+    comptime match n:
+        case 0:
+            return "буфер не нужен"
+        case 1 | 2 | 4 | 8 as small:
+            var stack = Array[Int, small](fill=0)  # small — параметр
+            return String("на стеке, ячеек: ", len(stack))
+        case _:
+            return "в куче"
+
+
+def kind[T: AnyType]() -> String:
+    comptime match T:
+        case == Int:
+            return "целое"
+        case == String:
+            return "строка"
+        case _:
+            return "что-то другое"
+
+
+def main():
+    print(buffer_plan[0](), "|", buffer_plan[4](), "|", buffer_plan[100]())
+    print(kind[Int](), kind[String](), kind[Float64]())
+```
+
+<Result output={"буфер не нужен | на стеке, ячеек: 4 | в куче\nцелое строка что-то другое"} />
+
+Как и у `comptime if`, в программу попадает только выбранная ветка.
+Отличий от обычного `match` три:
+
+- **Сопоставлять можно только то, что известно при сборке.** Обычная
+  переменная не подойдёт: `cannot use a dynamic value in 'match' subject`.
+- **Связанные имена — тоже параметры.** `small` в примере не переменная,
+  а значение этапа сборки, поэтому его можно подставить в тип:
+  `Array[Int, small]`. По той же причине `var` и `ref` в образцах
+  запрещены: `'var' bindings are not supported in 'comptime match'`.
+- **Сопоставлять можно типы.** `case == Int:` сравнивает параметр-тип
+  с конкретным типом — это «переключатель по типу», который в Python
+  делают через `isinstance` во время работы, а здесь он стоит ноль.
+  Подробнее о параметрах-типах — в главе [Параметризация](/meta/parameters/).
+
 ## Что это даёт
 
 <PyMojo>
@@ -316,11 +366,17 @@ def area[circle: Bool](size: Float64) -> Float64:
     выбранная ветка — проверки во время работы не остаётся вовсе.
   </QuizItem>
   <QuizItem q="Что делать, если в чужом коде встретился `@parameter if` или `alias`?">
-    Заменить на `comptime if` и `comptime`. `alias` ещё работает
-    с предупреждением, а `@parameter if` и `@parameter for` в 1.1 стали
-    ошибкой: `'for' statement does not support decorators`. Это стоит
-    держать в голове при чтении любых материалов о Mojo, написанных
-    до 1.0, — а таких большинство.
+    Заменить на `comptime if` и `comptime`. В 1.0 обе формы ещё работали
+    с предупреждением, а с 1.1 это ошибки: `'for' statement does not
+    support decorators`, а `alias` компилятор и вовсе не узнаёт как
+    ключевое слово. Это стоит держать в голове при чтении любых
+    материалов о Mojo, написанных до 1.0, — а таких большинство.
+  </QuizItem>
+  <QuizItem q="Можно ли написать `comptime match` по обычной переменной `var mode = 2`?">
+    Нет: `cannot use a dynamic value in 'match' subject`. `comptime match`
+    выбирает ветку при сборке, а значение переменной появится только
+    во время работы. Нужен параметр — `def f[mode: Int]()` — или обычный
+    `match`.
   </QuizItem>
 </Quiz>
 

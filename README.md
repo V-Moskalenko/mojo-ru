@@ -9,7 +9,7 @@
 
 ### [📖 Читать курс →](https://mojo-lang.ru/)
 
-[![Проверено на Mojo 1.1](https://img.shields.io/badge/проверено%20на-Mojo%201.1-ff7a2f)](https://mojolang.org/)
+[![Проверено на Mojo 1.2](https://img.shields.io/badge/проверено%20на-Mojo%201.2-ff7a2f)](https://mojolang.org/)
 [![Сборка сайта](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/deploy.yml/badge.svg)](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/deploy.yml)
 [![Примеры компилируются](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/check-examples.yml/badge.svg)](https://github.com/V-Moskalenko/mojo-ru/actions/workflows/check-examples.yml)
 [![Лицензия текста: CC BY-NC-SA 4.0](https://img.shields.io/badge/текст-CC%20BY--NC--SA%204.0-blue)](LICENSE-CONTENT)
