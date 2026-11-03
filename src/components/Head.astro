@@ -31,14 +31,14 @@ const isDraft = Astro.locals.starlightRoute?.entry?.data?.wip === true;
 const site = Astro.site?.href ?? 'https://mojo-lang.ru/';
 ---
 
-<Default><slot /></Default>
+<Default>
+  <slot />
+</Default>
 
 {(isFallback || isDraft) && <meta name="robots" content="noindex, follow" />}
 
-{
-  /* Векторную иконку Starlight ставит сам, здесь — остальные форматы:
-    ICO для старых браузеров и выдачи, PNG для телефонов. */
-}
+{/* Векторную иконку Starlight ставит сам, здесь — остальные форматы:
+    ICO для старых браузеров и выдачи, PNG для телефонов. */}
 <link rel="icon" href="/favicon.ico" sizes="48x48" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <link rel="manifest" href="/site.webmanifest" />
