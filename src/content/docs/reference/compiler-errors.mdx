@@ -1,9 +1,9 @@
 ---
 title: Ошибки компилятора
-description: "Справочник сообщений об ошибках Mojo 1.1: дословный текст, что он значит по-русски и как исправить. Каждое сообщение воспроизводится примером и перепроверяется на настоящем компиляторе."
+description: "Справочник сообщений об ошибках Mojo: дословный текст, что он значит по-русски и как исправить. Каждое сообщение воспроизводится примером и перепроверяется на настоящем компиляторе."
 sidebar:
   order: 3
-mojoVersion: 1.1.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -181,10 +181,11 @@ Mojo 1.0. Теперь нужно `from std.math import sqrt`; то же для 
 Подготовьте значение прямо в скобках: `t"{round(price, 2)}"`.
 → [Строки и Unicode](/basics/strings/#форматирование-t-строки-и-format)
 
-**`` error: invalid call to 'show': value passed to 'text' cannot be converted from 'TString[Int]' to 'String' ``**
+**`` error: invalid call to 'show': value passed to 'text' cannot be converted from 'TString[origin_of(n), origin_of(__call_result_tmp__)]' to 'String' ``**
 
 t-строка — ленивый шаблон, а не `String`. Функции, которая ждёт
-`String`, передайте `String(t"...")`.
+`String`, передайте `String(t"...")`. Записи `origin_of(...)` в имени
+типа — origin значений, на которые шаблон ссылается: у вас они будут свои.
 → [Строки и Unicode](/basics/strings/#форматирование-t-строки-и-format)
 
 **`` error: 'List[Int]' value has no attribute 'sort' ``**
@@ -250,10 +251,11 @@ t-строка — ленивый шаблон, а не `String`. Функции
 
 **`` error: 'c' abandoned without being explicitly destroyed: type 'Coroutine' does not conform to 'Deinitable' and must be explicitly destroyed ``**
 
-Вызвали `async def` без `await`, как иногда бывает в Python. Результат
-такого вызова — корутина, которая ещё ничего не сделала, и выбросить её
-молча нельзя. Добавьте `await`. Учтите, что `async` в Mojo 1.1
-нестабилен. → [Потоки, процессы и async](/performance/concurrency/#async-пока-в-разработке)
+Вызвали асинхронную функцию без `__await`, как иногда бывает в Python.
+Результат такого вызова — корутина, которая ещё ничего не сделала,
+и выбросить её молча нельзя. Добавьте `__await`. Учтите, что async
+в Mojo нестабилен: с 1.2 ключевые слова пишутся `__async` и `__await`,
+а старые `async` и `await` вызывают предупреждение. → [Потоки, процессы и async](/performance/concurrency/#async-пока-в-разработке)
 
 ## Исключения
 
@@ -418,7 +420,7 @@ Mojo допишет `execution crashed`. → [Обработка ошибок](/
 
 `input()` не получил ни строки: ввод закончился (`Ctrl+D`) или его
 не было вовсе, например под отладчиком. Если ввод подаётся конвейером,
-в Mojo 1.1 данные получает только первый `input()`. Читайте такой ввод
+в Mojo 1.2 данные получает только первый `input()`. Читайте такой ввод
 целиком через `open("/dev/stdin", "r").read()`.
 → [Стандартная библиотека на каждый день](/basics/stdlib/#ввод-с-клавиатуры)
 

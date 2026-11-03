@@ -1,9 +1,9 @@
 ---
 title: Шпаргалка по синтаксису
-description: "Весь основной синтаксис Mojo 1.1 на одной странице: переменные, строки, коллекции, функции, ошибки, структуры, владение, трейты, comptime, SIMD, Python и тесты. Каждый пример — рабочая программа, проверенная компилятором."
+description: "Весь основной синтаксис Mojo на одной странице: переменные, строки, коллекции, функции, ошибки, структуры, владение, трейты, comptime, SIMD, Python и тесты. Каждый пример — рабочая программа, проверенная компилятором."
 sidebar:
   order: 2
-mojoVersion: 1.1.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -192,6 +192,58 @@ def main():
 
 `else` у цикла срабатывает, только если не было `break`.
 Подробнее: [Управляющие конструкции](/basics/control-flow/).
+
+## Сопоставление с образцом
+
+```mojo
+@fieldwise_init
+struct Point(Writable):
+    var x: Int
+    var y: Int
+
+
+def kind(code: Int) -> String:
+    match code:
+        case 200:
+            return "ok"
+        case 301 | 302:  # любой из вариантов
+            return "redirect"
+        case c if c >= 500:  # имя + охранное условие
+            return String("error ", c)
+        case _:  # всё остальное
+            return "other"
+
+
+def main() raises:
+    print(kind(200), kind(302), kind(503), kind(418))
+
+    match Point(0, 7):
+        case Point(x=0, y=y):  # поля — только по именам
+            print("на оси Y:", y)
+        case _:
+            pass
+
+    var age: Optional[Int] = 30
+    if case .Some(years) = age:  # один образец без полного match
+        print("возраст:", years)
+
+    var xs: List[Int] = [1, 2, 3, 4]
+    match xs:
+        case [first, *rest]:
+            print(first, "и ещё", len(rest))
+        case _:
+            print("пусто")
+    var [head, *tail] = xs  # длина не подошла — исключение
+    print(head, tail)
+```
+
+<Result output={"ok redirect error 503 other\nна оси Y: 7\nвозраст: 30\n1 и ещё 3\n1 [2, 3, 4]"} />
+
+Голое имя в `case` создаёт новую переменную, а не сравнивает:
+со значением переменной сравнивает `case == limit:`. Есть с Mojo 1.2.
+Подробнее: [Управляющие конструкции](/basics/control-flow/#сопоставление-с-образцом-match),
+[Структуры](/basics/structs/#разбор-по-полям-match),
+[Коллекции](/basics/collections/#optional-и-образцы).
 
 ## Функции
 
@@ -540,8 +592,8 @@ def main():
 Общую переменную из нескольких потоков менять нельзя: компилятор это
 пропустит, а ответ будет неверным. Счётчик — `Atomic[Int]` из
 `std.atomic`, общий список — под `BlockingSpinLock` из `std.utils`,
-а быстрее всего — своя ячейка на каждый поток. GIL нет, `async`
-в 1.1 нестабилен. Подробнее: [Потоки, процессы и async](/performance/concurrency/).
+а быстрее всего — своя ячейка на каждый поток. GIL нет, async
+нестабилен и с 1.2 пишется `__async` / `__await`. Подробнее: [Потоки, процессы и async](/performance/concurrency/).
 
 ## Python из Mojo
 
