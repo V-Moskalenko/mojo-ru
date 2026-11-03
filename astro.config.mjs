@@ -190,6 +190,8 @@ export default defineConfig({
     }),
     starlight({
       title: 'Mojo по-русски',
+      // hreflang только для страниц с настоящим переводом — см. src/routeData.ts
+      routeMiddleware: './src/routeData.ts',
       tagline: 'Полный курс по языку Mojo на русском языке',
       description:
         'Бесплатный учебник по языку программирования Mojo на русском языке: установка на Windows через WSL, настройка VS Code, основы синтаксиса, владение значениями, SIMD и практические проекты.',
