@@ -1,9 +1,9 @@
 ---
 title: "Проект: утилита командной строки"
-description: "Первый законченный проект на Mojo 1.1: утилита wordfreq — частотный словарь текста. Разбор аргументов, stdout и stderr, коды возврата, чтение файлов и stdin, сборка в бинарник и честное сравнение скорости с Python 3.14."
+description: "Первый законченный проект на Mojo: утилита wordfreq — частотный словарь текста. Разбор аргументов, stdout и stderr, коды возврата, чтение файлов и stdin, сборка в бинарник и честное сравнение скорости с Python 3.14."
 sidebar:
   order: 1
-mojoVersion: 1.1.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -317,7 +317,7 @@ def count_words(text: String, min_len: Int, mut counts: Dict[String, Int]) -> In
 по краям любые символы из набора, `Dict` доступен без импорта,
 а `counts.get(key, 0)` работает как в Python. Новое — в трёх местах.
 
-**Длина строки.** `len(word)` в Mojo 1.1 не компилируется:
+**Длина строки.** `len(word)` в Mojo не компилируется:
 
 <CompilerError msg="error: `len(String/StringSlice)` is not supported because Mojo strings are UTF-8 encoded, so a single length is ambiguous: …">
   <Fragment slot="meaning">
@@ -387,9 +387,11 @@ sort(pairs, more_frequent)
 
 ## Вывод таблицей
 
-Метода `rjust` у строк в Mojo 1.1 нет, так что выравнивание пишется руками.
-А ширину слова считаем в символах, а не в байтах, — иначе русские слова
-съедут вдвое:
+Метода `rjust` у строк в Mojo нет. Есть похожий `ascii_rjust`, но,
+как подсказывает приставка, ширину он считает в байтах: `"cat".ascii_rjust(6)`
+даёт `"   cat"`, а `"кот".ascii_rjust(6)` — просто `"кот"`, ведь шесть
+байт в нём уже есть. Поэтому выравнивание пишется руками, и ширину слова
+считаем в символах, а не в байтах, — иначе русские слова съедут вдвое:
 
 ```mojo
 var number = String(i + 1)
@@ -558,7 +560,7 @@ uv run mojo run wordfreq.mojo -n 5 sample.txt
     с результатом, и код 2 — как у `argparse`, `ls` и `grep`. Код 1 — когда
     работа сделана, но с ошибками, 0 — когда всё хорошо.
   </QuizItem>
-  <QuizItem q="Как в Mojo 1.1 узнать число символов в строке?">
+  <QuizItem q="Как в Mojo узнать число символов в строке?">
     `len(s.codepoints())`. Просто `len(s)` не компилируется: строки
     в UTF-8, и компилятор просит уточнить, нужны байты (`byte_length()`),
     символы или видимые знаки.

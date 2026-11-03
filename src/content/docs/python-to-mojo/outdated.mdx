@@ -1,12 +1,12 @@
 ---
 title: Устаревшие конструкции
-description: Что изменилось в Mojo к версии 1.0 — таблица соответствий «устарело → актуально», чтобы старые статьи и код из интернета не вводили вас в заблуждение.
+description: Что изменилось в Mojo к версии 1.0 и после неё — таблица соответствий «устарело → актуально», чтобы старые статьи и код из интернета не вводили вас в заблуждение.
 sidebar:
   order: 4
   badge:
     text: Важно
     variant: caution
-mojoVersion: 1.1.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside } from '@astrojs/starlight/components';
@@ -79,7 +79,7 @@ def main():
 | `@register_passable` | соответствие трейту | декоратор удалён, заменён системой трейтов |
 | `fn __init__(inout self)` | `def __init__(out self)` | и ключевое слово функции, и конвенция `self` |
 | `__copyinit__` / `__moveinit__` | `__init__` с именованными аргументами копирования и перемещения | старые имена больше не распознаются автоматически |
-| Копируемость по умолчанию | явные трейты `Copyable`, `Movable` | по умолчанию структура не копируема и не перемещаема |
+| Копируемость по умолчанию | явный трейт `Copyable` или `ImplicitlyCopyable` | по умолчанию структура не копируема; перемещать её можно и без трейтов, запретить — `not Movable` |
 
 ### Метапрограммирование и прочее
 
@@ -94,6 +94,24 @@ def main():
 | `CollectionElement` | `Movable` | `List` больше не требует копируемости |
 | `from math import sqrt`, `from collections import Dict` | `from std.math import sqrt`; `Dict` не нужно импортировать | с 1.0 стандартная библиотека импортируется только с префиксом `std.`: `unable to locate module 'math'` |
 | `mojo package`, файлы `.mojopkg` | `mojo precompile`, файлы `.mojoc` | переименована команда и расширение |
+
+### Устарело в 1.2
+
+Свежие изменения: код с ними пока собирается, но с предупреждением или
+требует мелкой правки.
+
+| Устарело | Актуально сейчас | Комментарий |
+| --- | --- | --- |
+| `async def`, `await` | `__async def`, `__await` | старое написание даёт предупреждение «experimental and unstable» |
+| «в Mojo нет `match`» | `match` / `case`, `if case`, `while case` | сопоставление с образцом появилось в 1.2 |
+| `where (условие, "текст")` | `where условие else "текст"` | старая запись работает, но её собираются объявить устаревшей |
+| `Movable where False` | `not Movable` | обе записи работают, новая читается лучше |
+| `from std.hashlib import ...` | `from std.hash import ...` | модуль переименован: `unable to locate module 'hashlib'` |
+| `hash(ptr, length)` | `hash_bytes(s.as_bytes())` | компилятор предупреждает: ``Use `hash_bytes()` instead`` |
+| `s.isspace()` | `s.is_ascii_whitespace()` | `'isspace' is deprecated` |
+| `has_nvidia_gpu_accelerator()` | `default_accelerator().is_nvidia_gpu()` | функции `has_*_gpu_accelerator` удалены из `std.sys` |
+| `from_bytes[big_endian=True]` | `from_bytes[endian=.big]` | параметр-флаг заменён типом `Endian` |
+| `def f() -> ():` | `def f() -> Tuple[]:` | `()` теперь всегда значение, а не тип |
 
 ### Установка и инструменты
 

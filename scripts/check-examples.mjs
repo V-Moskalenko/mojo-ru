@@ -118,9 +118,15 @@ function runMojo(file, args = [], { programArgs = [], cwd } = {}) {
  * Код курса не должен учить устаревшему: если компилятор предупреждает,
  * что конструкция deprecated, пример считается сломанным, даже когда
  * он компилируется и печатает правильный ответ.
+ *
+ * То же с нестабильным: с 1.2 `async` и `await` без подчёркиваний
+ * компилируются, но с предупреждением «experimental and unstable» —
+ * слова «deprecated» в нём нет, а смысл тот же: так писать не надо.
  */
+const WARNS_AGAINST = /deprecated|experimental and unstable/i;
+
 function deprecation(result) {
-  const lines = result.stderr.split('\n').filter((line) => /deprecated/i.test(line));
+  const lines = result.stderr.split('\n').filter((line) => WARNS_AGAINST.test(line));
   return lines.length ? lines.join('\n') : null;
 }
 
@@ -177,7 +183,7 @@ for (const file of collect(EXAMPLES, '.mojo')) {
     }
     if (existsSync(so)) unlinkSync(so);
     if (deprecation(built)) {
-      console.error(`✗ ${rel}: устаревший API`);
+      console.error(`✗ ${rel}: устаревший или нестабильный API`);
       console.error(deprecation(built));
       failed++;
       continue;
@@ -209,7 +215,7 @@ for (const file of collect(EXAMPLES, '.mojo')) {
       continue;
     }
     if (deprecation(built)) {
-      console.error(`✗ ${rel}: устаревший API`);
+      console.error(`✗ ${rel}: устаревший или нестабильный API`);
       console.error(deprecation(built));
       failed++;
       continue;
@@ -252,7 +258,7 @@ for (const file of collect(EXAMPLES, '.mojo')) {
       continue;
     }
     if (deprecation(tested)) {
-      console.error(`✗ ${rel}: устаревший API`);
+      console.error(`✗ ${rel}: устаревший или нестабильный API`);
       console.error(deprecation(tested));
       failed++;
       continue;
@@ -284,7 +290,7 @@ for (const file of collect(EXAMPLES, '.mojo')) {
   }
 
   if (deprecation(result)) {
-    console.error(`✗ ${rel}: устаревший API`);
+    console.error(`✗ ${rel}: устаревший или нестабильный API`);
     console.error(deprecation(result));
     failed++;
     continue;
@@ -349,7 +355,7 @@ for (const file of collect(DOCS, '.mdx')) {
     }
 
     if (deprecation(result)) {
-      console.error(`✗ ${rel} (блок кода #${index + 1}): устаревший API`);
+      console.error(`✗ ${rel} (блок кода #${index + 1}): устаревший или нестабильный API`);
       console.error(deprecation(result));
       failed++;
       continue;
@@ -428,7 +434,7 @@ for (const file of collect(DOCS, '.mdx')) {
       console.error(result.stderr.trim());
       failed++;
     } else if (deprecation(result)) {
-      console.error(`✗ ${rel} (фрагмент #${index + 1}): устаревший API`);
+      console.error(`✗ ${rel} (фрагмент #${index + 1}): устаревший или нестабильный API`);
       console.error(deprecation(result));
       failed++;
     }
@@ -455,7 +461,8 @@ function gpuBuildError(file) {
     const built = runMojo(file, ['build', `--target-accelerator=${target}`, '-o', exe]);
     if (existsSync(exe)) unlinkSync(exe);
     if (!built.ok) return `${target}:\n${built.stderr.trim()}`;
-    if (deprecation(built)) return `${target}: устаревший API\n${deprecation(built)}`;
+    if (deprecation(built))
+      return `${target}: устаревший или нестабильный API\n${deprecation(built)}`;
   }
   return null;
 }
