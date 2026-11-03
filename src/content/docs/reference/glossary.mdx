@@ -51,6 +51,17 @@ import { Aside } from '@astrojs/starlight/components';
 | overloading | перегрузка | |
 | return type | возвращаемый тип | |
 | generic | обобщённый | «generic-функция» → «обобщённая функция» |
+| typed error | типизированная ошибка | свой тип ошибки в сигнатуре: `raises MyError` |
+| template string, t-string | t-строка | шаблон с подстановкой `t"…"`, замена f-строки |
+| trait opt-out | отказ от трейта | `not Movable` в списке трейтов |
+| pattern matching | сопоставление с образцом | устоялось в русских переводах документации Python и Rust |
+| pattern | образец | не «паттерн» — чтобы не путать с паттернами проектирования |
+| subject | сопоставляемое значение | то, что стоит после `match` |
+| guard | охранное условие | `case x if x > 0:` |
+| wildcard pattern | подстановочный образец | `_`, подходит ко всему |
+| binding | связывание, связанное имя | имя в образце получает часть значения |
+| exhaustive | полный (`match`) | покрывает все варианты; иначе предупреждение |
+| destructuring | распаковка | `var [first, *rest] = xs`, как распаковка кортежа в Python |
 
 <Aside type="caution" title="Аргумент и параметр — это разные вещи">
   В Python «аргумент» и «параметр» — синонимы, которые все путают и никто
@@ -73,7 +84,6 @@ import { Aside } from '@astrojs/starlight/components';
 | partially-bound type | частично заданный тип | не «частично связанный» |
 | metaprogramming | метапрограммирование | |
 | parameterization | параметризация | |
-| materialization | материализация | |
 | binary, executable | исполняемый файл, бинарник | «бинарник» допустим в неформальном контексте |
 | toolchain | набор инструментов | |
 
@@ -85,6 +95,11 @@ import { Aside } from '@astrojs/starlight/components';
 | lane | линия | «линия SIMD-вектора» |
 | vectorization | векторизация | |
 | parallelization | распараллеливание | |
+| thread pool | пул потоков | |
+| data race | гонка данных | |
+| atomic | атомарная операция, атомик | «атомик» — о типе `Atomic` |
+| spin lock | спин-блокировка | поток ждёт в цикле, а не засыпает |
+| coroutine | корутина | |
 | benchmark | замер производительности, бенчмарк | оба варианта допустимы |
 | overhead | накладные расходы | |
 | zero-cost abstraction | абстракция без накладных расходов | |

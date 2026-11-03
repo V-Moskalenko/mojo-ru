@@ -36,24 +36,22 @@ def main() raises:
     # ЛОВУШКА: и границы цикла, и все слагаемые известны при сборке.
     # keep() не спасает — он мешает выбросить результат, но не мешает
     # посчитать его заранее.
-    @parameter
-    def folded():
+    def folded() {}:
         var total = 0
         for i in range(N):
             total += i * i
         keep(total)
 
     # ЧЕСТНО: числа читаются из кучи. Вот это свернуть не выйдет.
-    @parameter
-    def honest():
+    def honest() {imm data}:
         var total = 0
         for i in range(len(data)):
             total += data[i]
         keep(total)
 
     # .min(), а не .mean(): шум только добавляет время, никогда не убавляет.
-    var folded_ns = run[folded](max_runtime_secs=0.3).min() * 1e9
-    var honest_ns = run[honest](max_runtime_secs=0.3).min() * 1e9
+    var folded_ns = run(folded, max_runtime_secs=0.3).min() * 1e9
+    var honest_ns = run(honest, max_runtime_secs=0.3).min() * 1e9
 
     verdict(String("константы   "), folded_ns / Float64(N))
     verdict(String("данные      "), honest_ns / Float64(N))

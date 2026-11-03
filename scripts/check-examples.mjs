@@ -1,13 +1,34 @@
 /**
  * Проверка кода курса на настоящем компиляторе Mojo.
  *
- * Две части:
+ * Три части:
  *
  * 1. Файлы `examples/**\/*.mojo` — запускаются, вывод сверяется с лежащим
  *    рядом файлом `<имя>.out`.
  * 2. Полные примеры прямо из текста глав — все блоки ```mojo, содержащие
  *    `def main`, компилируются. Так код на сайте не может разойтись
  *    с реальностью, даже если его забыли вынести в examples/.
+ * 3. Фрагменты без `def main` — хотя бы разбираются.
+ * 4. Программы для видеокарты — ещё и собираются под GPU NVIDIA и AMD.
+ * 5. Примеры ошибок (`examples/reference/compiler-errors`) — наоборот,
+ *    обязаны упасть, и именно с тем сообщением, что записано в первой
+ *    строке файла: `# ожидается: <текст>`. Так справочник ошибок на сайте
+ *    не устареет: если Mojo поменяет формулировку, проверка это заметит.
+ *    Видеокарты у CI нет, поэтому в шагах 1–2 ветка
+ *    `comptime if has_accelerator()` для GPU только проверяется на типы,
+ *    а собирается и запускается ветка для процессора. Флаг
+ *    `--target-accelerator` заставляет компилятор собрать и ветку для GPU,
+ *    вместе с ядрами, — запустить её нельзя, но собраться она обязана.
+ *
+ * Программе из examples/ можно передать аргументы командной строки: они
+ * лежат рядом в файле <имя>.args (через пробел, без кавычек), а запускается
+ * программа из своего каталога. Файлы test_*.mojo считаются тестами:
+ * им достаточно завершиться с кодом 0. Файлы bench_*.mojo — замеры:
+ * их вывод зависит от машины, поэтому он не сверяется; замер собирается,
+ * а если рядом есть .args — ещё и запускается на маленьких данных.
+ *
+ * Везде предупреждение компилятора «deprecated» считается ошибкой: курс
+ * не должен учить тому, что уже помечено к удалению.
  *
  * Запуск локально (Linux, macOS или WSL с установленным Mojo):
  *   npm run examples:check
@@ -27,8 +48,8 @@ import {
   writeFileSync,
   unlinkSync,
 } from 'node:fs';
-import { join, extname, relative } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { join, extname, relative, basename, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 
 const ROOT = new URL('../', import.meta.url).pathname;
@@ -63,30 +84,59 @@ const norm = (s) =>
     .join('\n')
     .trim();
 
-/** Запускает mojo и возвращает { ok, stdout, stderr }. */
-function runMojo(file, args = []) {
-  try {
-    const stdout = execFileSync(MOJO, [...args, file], {
-      encoding: 'utf-8',
-      timeout: 300_000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return { ok: true, stdout, stderr: '' };
-  } catch (error) {
-    return {
-      ok: false,
-      stdout: String(error.stdout ?? ''),
-      // предупреждение про Crashpad появляется в контейнерах и ни на что не влияет
-      stderr: String(error.stderr ?? error.message)
-        .split('\n')
-        .filter((line) => !line.includes('Crashpad'))
-        .join('\n'),
-    };
-  }
+/** Строки stderr, которые ни на что не влияют. */
+const quiet = (text) =>
+  String(text ?? '')
+    .split('\n')
+    // предупреждение про Crashpad появляется в контейнерах и ни на что не влияет
+    .filter((line) => !line.includes('Crashpad'))
+    .join('\n');
+
+/**
+ * Запускает mojo и возвращает { ok, stdout, stderr }.
+ * `args` — флаги компилятора (до имени файла), `programArgs` — аргументы
+ * самой программы (после имени файла), `cwd` — рабочий каталог.
+ */
+function runMojo(file, args = [], { programArgs = [], cwd } = {}) {
+  const run = spawnSync(MOJO, [...args, file, ...programArgs], {
+    cwd,
+    encoding: 'utf-8',
+    timeout: 300_000,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return {
+    ok: run.status === 0,
+    stdout: String(run.stdout ?? ''),
+    stderr:
+      quiet(run.stderr) ||
+      String(run.error?.message ?? '') ||
+      (run.status === 0 ? '' : `код выхода ${run.status}, сигнал ${run.signal}`),
+  };
+}
+
+/**
+ * Код курса не должен учить устаревшему: если компилятор предупреждает,
+ * что конструкция deprecated, пример считается сломанным, даже когда
+ * он компилируется и печатает правильный ответ.
+ *
+ * То же с нестабильным: с 1.2 `async` и `await` без подчёркиваний
+ * компилируются, но с предупреждением «experimental and unstable» —
+ * слова «deprecated» в нём нет, а смысл тот же: так писать не надо.
+ */
+const WARNS_AGAINST = /deprecated|experimental and unstable/i;
+
+function deprecation(result) {
+  const lines = result.stderr.split('\n').filter((line) => WARNS_AGAINST.test(line));
+  return lines.length ? lines.join('\n') : null;
 }
 
 let failed = 0;
 let checked = 0;
+
+/** Первая строка примера ошибки: `# ожидается: <текст сообщения>`. */
+const EXPECT_PREFIX = '# ожидается: ';
+/** Все ожидаемые сообщения — для сверки со справочником ошибок. */
+const expectedErrors = [];
 
 // --- 1. Примеры-файлы: компилируются, запускаются, вывод сверяется ---------
 
@@ -95,6 +145,28 @@ for (const file of collect(EXAMPLES, '.mojo')) {
   const expectedFile = file.replace(/\.mojo$/, '.out');
 
   const source = readFileSync(file, 'utf-8');
+
+  // Пример ошибки: программа обязана НЕ сработать, а сообщение компилятора
+  // (или ошибка при запуске) — содержать текст из первой строки.
+  if (source.startsWith(EXPECT_PREFIX)) {
+    checked++;
+    const expected = source.split('\n')[0].slice(EXPECT_PREFIX.length).trim();
+    expectedErrors.push({ rel, expected });
+    const result = runMojo(file, [], { cwd: dirname(file) });
+    const output = `${result.stdout}\n${result.stderr}`;
+    if (result.ok) {
+      console.error(`✗ ${rel}: должен был упасть, а отработал без ошибки`);
+      failed++;
+    } else if (!output.includes(expected)) {
+      console.error(`✗ ${rel}: сообщение об ошибке изменилось`);
+      console.error('  ожидалось:', expected);
+      console.error('  получено: ', result.stderr.trim().split('\n').slice(0, 6).join('\n'));
+      failed++;
+    } else {
+      console.log(`✓ ${rel} (ошибка воспроизводится)`);
+    }
+    continue;
+  }
 
   // Модуль расширения для Python: точки входа main у него нет, зато есть
   // PyInit_. Запустить нельзя, но собрать в разделяемую библиотеку можно —
@@ -110,6 +182,12 @@ for (const file of collect(EXAMPLES, '.mojo')) {
       continue;
     }
     if (existsSync(so)) unlinkSync(so);
+    if (deprecation(built)) {
+      console.error(`✗ ${rel}: устаревший или нестабильный API`);
+      console.error(deprecation(built));
+      failed++;
+      continue;
+    }
     console.log(`✓ ${rel} (расширение Python, сборка)`);
     continue;
   }
@@ -124,16 +202,96 @@ for (const file of collect(EXAMPLES, '.mojo')) {
 
   checked++;
 
+  // Замер: печатает время, которое у каждой машины своё. Сверять нечего,
+  // а гонять долго — достаточно, чтобы он собирался.
+  if (/^bench_.*\.mojo$/.test(basename(file))) {
+    const exe = join(tmpdir(), `mojo-ru-bench-${process.pid}-${checked}`);
+    const built = runMojo(file, ['build', '-o', exe]);
+    if (existsSync(exe)) unlinkSync(exe);
+    if (!built.ok) {
+      console.error(`✗ ${rel}: замер не собирается`);
+      console.error(built.stderr.trim());
+      failed++;
+      continue;
+    }
+    if (deprecation(built)) {
+      console.error(`✗ ${rel}: устаревший или нестабильный API`);
+      console.error(deprecation(built));
+      failed++;
+      continue;
+    }
+    // Если рядом лежит <имя>.args, прогоняем замер на маленьких данных:
+    // вывод не сверяем, но падение во время работы поймаем.
+    const benchArgs = file.replace(/\.mojo$/, '.args');
+    if (existsSync(benchArgs)) {
+      const ran = runMojo(file, ['run'], {
+        programArgs: readFileSync(benchArgs, 'utf-8').trim().split(/\s+/).filter(Boolean),
+        cwd: dirname(file),
+      });
+      if (!ran.ok) {
+        console.error(`✗ ${rel}: замер падает при запуске`);
+        console.error(ran.stderr.trim());
+        failed++;
+        continue;
+      }
+      console.log(`✓ ${rel} (замер: сборка и пробный запуск)`);
+      continue;
+    }
+    console.log(`✓ ${rel} (замер, только сборка)`);
+    continue;
+  }
+
+  // Файл с тестами: вывод содержит время выполнения и потому каждый раз
+  // разный. Сверять его не с чем — достаточно, чтобы все тесты прошли.
+  // Пакет, который тестируется, лежит по соседству в ../src.
+  if (/^test_.*\.mojo$/.test(basename(file))) {
+    const src = join(dirname(file), '..', 'src');
+    // -D ASSERT=all: тесты гоняются и со всеми debug_assert, как советует глава.
+    const tested = runMojo(
+      file,
+      existsSync(src) ? ['run', '-D', 'ASSERT=all', '-I', src] : ['run', '-D', 'ASSERT=all']
+    );
+    if (!tested.ok) {
+      console.error(`✗ ${rel}: тесты не проходят`);
+      console.error(tested.stderr.trim());
+      failed++;
+      continue;
+    }
+    if (deprecation(tested)) {
+      console.error(`✗ ${rel}: устаревший или нестабильный API`);
+      console.error(deprecation(tested));
+      failed++;
+      continue;
+    }
+    console.log(`✓ ${rel} (тесты)`);
+    continue;
+  }
+
   if (!existsSync(expectedFile)) {
     console.error(`✗ ${rel}: нет файла с ожидаемым выводом`);
     failed++;
     continue;
   }
 
-  const result = runMojo(file);
+  // Программе нужны аргументы командной строки? Они лежат рядом в <имя>.args,
+  // а запускается она из своего каталога, чтобы находить свои входные файлы.
+  const argsFile = file.replace(/\.mojo$/, '.args');
+  const result = existsSync(argsFile)
+    ? runMojo(file, ['run'], {
+        programArgs: readFileSync(argsFile, 'utf-8').trim().split(/\s+/).filter(Boolean),
+        cwd: dirname(file),
+      })
+    : runMojo(file);
   if (!result.ok) {
     console.error(`✗ ${rel}: не компилируется или падает`);
     console.error(result.stderr.trim());
+    failed++;
+    continue;
+  }
+
+  if (deprecation(result)) {
+    console.error(`✗ ${rel}: устаревший или нестабильный API`);
+    console.error(deprecation(result));
     failed++;
     continue;
   }
@@ -192,6 +350,13 @@ for (const file of collect(DOCS, '.mdx')) {
     if (!result.ok) {
       console.error(`✗ ${rel} (блок кода #${index + 1}): не компилируется`);
       console.error(result.stderr.trim());
+      failed++;
+      continue;
+    }
+
+    if (deprecation(result)) {
+      console.error(`✗ ${rel} (блок кода #${index + 1}): устаревший или нестабильный API`);
+      console.error(deprecation(result));
       failed++;
       continue;
     }
@@ -268,8 +433,104 @@ for (const file of collect(DOCS, '.mdx')) {
       console.error(`✗ ${rel} (фрагмент #${index + 1}): не разбирается`);
       console.error(result.stderr.trim());
       failed++;
+    } else if (deprecation(result)) {
+      console.error(`✗ ${rel} (фрагмент #${index + 1}): устаревший или нестабильный API`);
+      console.error(deprecation(result));
+      failed++;
     }
   }
+}
+
+// --- 4. Ядра GPU: сборка под видеокарты, которых у CI нет ----------------
+//
+// Без видеокарты `has_accelerator()` ложно, и ветку с ядрами компилятор
+// только проверяет на типы, но не собирает. Проверки, зависящие от
+// видеокарты (можно ли передать аргумент в ядро, подходит ли он по типу),
+// в шагах 1 и 2 не выполняются. Собираем такие программы под конкретные
+// архитектуры — эти ошибки всплывут здесь.
+
+/** Архитектуры для проверки: NVIDIA Ampere (RTX 30xx) и AMD RDNA3 (RX 7900). */
+const GPU_TARGETS = ['sm_86', 'gfx1100'];
+
+const USES_GPU = /\bfrom max\.gpu\b|\bimport max\.gpu\b/;
+
+/** Собирает файл под каждую архитектуру; возвращает текст ошибки или null. */
+function gpuBuildError(file) {
+  for (const target of GPU_TARGETS) {
+    const exe = join(tmpdir(), `mojo-ru-gpu-${process.pid}-${checked}-${target}`);
+    const built = runMojo(file, ['build', `--target-accelerator=${target}`, '-o', exe]);
+    if (existsSync(exe)) unlinkSync(exe);
+    if (!built.ok) return `${target}:\n${built.stderr.trim()}`;
+    if (deprecation(built))
+      return `${target}: устаревший или нестабильный API\n${deprecation(built)}`;
+  }
+  return null;
+}
+
+for (const file of collect(EXAMPLES, '.mojo')) {
+  const source = readFileSync(file, 'utf-8');
+  if (!USES_GPU.test(source) || !/\bdef main\b/.test(source)) continue;
+  const rel = relative(EXAMPLES, file);
+  checked++;
+  const error = gpuBuildError(file);
+  if (error) {
+    console.error(`✗ ${rel}: не собирается под GPU`);
+    console.error(error);
+    failed++;
+    continue;
+  }
+  console.log(`✓ ${rel} (сборка под GPU: ${GPU_TARGETS.join(', ')})`);
+}
+
+for (const file of collect(DOCS, '.mdx')) {
+  const rel = relative(DOCS, file);
+  if (SKIP_FILES.includes(rel)) continue;
+
+  const blocks = [...readFileSync(file, 'utf-8').matchAll(/```mojo[^\n]*\n([\s\S]*?)```/g)]
+    .map((match) => match[1])
+    .filter((code) => /\bdef main\b/.test(code) && USES_GPU.test(code));
+
+  for (const [index, code] of blocks.entries()) {
+    const tmp = join(tmpdir(), `mojo-ru-gpu-${process.pid}-${checked}.mojo`);
+    writeFileSync(tmp, code, 'utf-8');
+    checked++;
+    const error = gpuBuildError(tmp);
+    unlinkSync(tmp);
+    if (error) {
+      console.error(`✗ ${rel} (блок с GPU #${index + 1}): не собирается под GPU`);
+      console.error(error);
+      failed++;
+      continue;
+    }
+    console.log(`✓ ${rel} (блок с GPU #${index + 1}, сборка под GPU)`);
+  }
+}
+
+// --- 5. Справочник ошибок сверяется с примерами ---------------------------
+//
+// Каждое сообщение на странице reference/compiler-errors записано строкой
+// вида **`` текст ``** и должно подтверждаться примером из шага 1, а каждый
+// пример — встречаться на странице. Иначе справочник и проверка разойдутся.
+
+const ERRORS_PAGE = join(DOCS, 'reference/compiler-errors.mdx');
+if (existsSync(ERRORS_PAGE)) {
+  const onPage = [...readFileSync(ERRORS_PAGE, 'utf-8').matchAll(/^\*\*`` (.+?) ``\*\*$/gm)].map(
+    (match) => match[1]
+  );
+  for (const message of onPage) {
+    checked++;
+    if (!expectedErrors.some(({ expected }) => message.includes(expected))) {
+      console.error(`✗ reference/compiler-errors.mdx: нет примера для «${message}»`);
+      failed++;
+    }
+  }
+  for (const { rel, expected } of expectedErrors) {
+    if (!onPage.some((message) => message.includes(expected))) {
+      console.error(`✗ ${rel}: ошибки «${expected}» нет в справочнике`);
+      failed++;
+    }
+  }
+  console.log(`✓ reference/compiler-errors.mdx: ${onPage.length} сообщений сверено с примерами`);
 }
 
 console.log(`\nПроверено: ${checked}, ошибок: ${failed}`);

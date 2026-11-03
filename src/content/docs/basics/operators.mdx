@@ -1,9 +1,9 @@
 ---
 title: Операторы
-description: Арифметика, сравнения, логика и побитовые операции в Mojo 1.0 — и как научить собственную структуру работать с оператором «плюс».
+description: Арифметика, сравнения, логика и побитовые операции в Mojo — и как научить собственную структуру работать с оператором «плюс».
 sidebar:
   order: 6
-mojoVersion: 1.0.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -137,22 +137,25 @@ def main():
 результат нужен и в условии, и в теле.
 
 <Aside type="caution" title="Переменную для «моржа» объявляйте заранее">
-  Если написать `if (count := ...)` без предварительного `var count: Int`,
-  код соберётся, но компилятор предупредит:
+  Без предварительного `var count: Int` строка `if (count := ...)`
+  в Mojo не компилируется. Причём сообщение сбивает с толку:
 
   ```text
-  warning: implicit declaration of 'count' is deprecated;
-  declare it with 'var' in the function body
+  error: use of unknown declaration 'count'; did you mean to import it from 'std.itertools'? Add 'from std.itertools import count'
   ```
 
-  Причина та же, что и с обычными переменными: неявное объявление
-  в Mojo 1.0 устарело.
+  Подсказка про `std.itertools` появилась лишь потому, что там есть функция
+  `count`; для другого имени будет просто `use of unknown declaration`.
+  Причина та же, что и с обычными переменными: неявных объявлений в Mojo
+  больше нет — в 1.0 это было предупреждением, в 1.1 стало ошибкой.
 </Aside>
 
 ## Свои операторы для своих типов
 
 Вот здесь Mojo интереснее Python. Чтобы структура умела складываться,
-достаточно определить метод `__add__`:
+достаточно определить метод `__add__`. Структуры подробно разобраны
+чуть позже, в главе [«Структуры»](/basics/structs/); пока достаточно
+знать, что `@fieldwise_init` создаёт конструктор из полей по порядку:
 
 ```mojo
 @fieldwise_init

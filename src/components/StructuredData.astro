@@ -12,6 +12,7 @@
  * они и так закрыты от индексации.
  */
 import { getCollection } from 'astro:content';
+import { execFileSync } from 'node:child_process';
 
 const route = Astro.locals.starlightRoute;
 const site = Astro.site?.href ?? 'https://mojo-lang.ru/';
@@ -51,7 +52,7 @@ const course = {
   name: 'Mojo по-русски',
   url: site,
   description:
-    'Бесплатный курс по языку программирования Mojo 1.0 на русском языке: установка на Windows через WSL, настройка VS Code, синтаксис, владение значениями, SIMD и практические проекты.',
+    'Бесплатный курс по языку программирования Mojo на русском языке: установка на Windows через WSL, настройка VS Code, синтаксис, владение значениями, SIMD и практические проекты.',
   inLanguage: 'ru',
   isAccessibleForFree: true,
   educationalLevel: 'beginner',
@@ -73,7 +74,7 @@ const course = {
   },
   teaches: [
     'Установка Mojo на Windows через WSL',
-    'Синтаксис Mojo 1.0',
+    'Синтаксис Mojo',
     'Владение значениями и модель памяти',
     'Векторные вычисления SIMD',
     'Совместимость с Python',
@@ -124,6 +125,31 @@ function breadcrumbs() {
   return { '@type': 'BreadcrumbList', itemListElement: items };
 }
 
+/**
+ * Дата публикации — коммит, которым файл главы появился в репозитории.
+ * Google рекомендует указывать её для статей рядом с датой изменения.
+ * Без истории git (мелкая копия) поле просто не выводится.
+ */
+function datePublished() {
+  const file = route?.entry?.filePath;
+  if (!file) return undefined;
+  try {
+    const dates = execFileSync('git', ['log', '--diff-filter=A', '--format=%cI', '--', file], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+    const first = dates.at(-1);
+    return first ? new Date(first).toISOString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const published = datePublished();
+
 const article = {
   '@type': 'TechArticle',
   '@id': `${url}#article`,
@@ -135,6 +161,7 @@ const article = {
   author: { '@id': ORG },
   publisher: { '@id': ORG },
   isPartOf: { '@id': COURSE },
+  ...(published ? { datePublished: published } : {}),
   ...(route?.lastUpdated instanceof Date ? { dateModified: route.lastUpdated.toISOString() } : {}),
 };
 

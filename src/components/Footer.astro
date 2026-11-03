@@ -11,18 +11,18 @@ const checkedOn = entry?.data?.mojoVersion ?? MOJO_VERSION;
 const isDraft = entry?.data?.wip === true;
 ---
 
-{
-  !isDraft && (
-    <div class="mojo-version-badge not-content">
-      <span class="mojo-version-badge__dot" />
-      Примеры проверены на Mojo {checkedOn}
-    </div>
-  )
-}
-<Default {...Astro.props}><slot /></Default>
+{!isDraft && (
+  <div class="mojo-version-badge not-content">
+    <span class="mojo-version-badge__dot" />
+    Примеры проверены на Mojo {checkedOn}
+  </div>
+)}
+<Default {...Astro.props}>
+  <slot />
+</Default>
 
 <p class="mojo-license not-content">
-  Тексты курса — <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ru"
-    >CC BY-NC-SA 4.0</a
-  >, код примеров — <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache 2.0</a>
+  Тексты курса —{' '}
+  <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ru">CC BY-NC-SA 4.0</a>, код
+  примеров — <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache 2.0</a>
 </p>
