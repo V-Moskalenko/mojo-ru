@@ -3,7 +3,7 @@ title: Что изменилось
 description: Главные отличия Mojo от Python — с настоящими сообщениями компилятора и объяснением, почему сделано именно так.
 sidebar:
   order: 2
-mojoVersion: 1.1.0
+mojoVersion: 1.2.0
 ---
 
 import { Aside, Code } from '@astrojs/starlight/components';
@@ -319,7 +319,7 @@ var f = lambda (x: Int) -> Int: x + 1
 
 ## 11. Переменные объявляются через `var`
 
-Присваивание без `var`, как в Python, в Mojo 1.1 не компилируется:
+Присваивание без `var`, как в Python, в Mojo не компилируется:
 
 <CompilerError msg="error: implicit declaration of 'x' is not allowed; add 'var' to declare a new name">
   <Fragment slot="meaning">
@@ -361,7 +361,7 @@ uv run mojo build main.mojo   # получить исполняемый файл
 | `lambda x: x + 1` | `lambda (x: Int) -> Int: x + 1` |
 | `x = 1` | `var x = 1` |
 | `threading`, `multiprocessing` | GIL нет: пул потоков `parallelize` занимает все ядра |
-| `asyncio` | в 1.1 нет: `async` нестабилен |
+| `asyncio` | нет: async нестабилен, с 1.2 даже пишется `__async` |
 
 <Quiz>
   <QuizItem q="Почему в Mojo нельзя просто написать len(строки)?">

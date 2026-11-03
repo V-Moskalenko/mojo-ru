@@ -1,22 +1,17 @@
 # Кольцевой буфер фиксированной ёмкости.
-# Два требования к ёмкости записаны по-разному:
-#   - «больше нуля» — where: условие попадает в сигнатуру типа;
-#   - «степень двойки» — comptime assert ради понятного сообщения.
-# Технически второе тоже выразилось бы через where (битовые операции
-# решателю доступны), но тогда пользователь читал бы машинный текст.
+# Оба требования к ёмкости записаны в сигнатуре типа, у каждого своё
+# сообщение после else — его и прочитает тот, кто ошибётся с ёмкостью.
 
 
-struct Ring[capacity: Int](Copyable, Movable) where capacity > 0:
+struct Ring[capacity: Int](Copyable, Movable) where (
+    capacity > 0
+) else "ёмкость кольца должна быть положительной" where (
+    (capacity & (capacity - 1)) == 0
+) else "ёмкость кольца должна быть степенью двойки":
     var data: Array[Int, Self.capacity]
     var count: Int
 
     def __init__(out self):
-        # Проверка при сборке: маска вместо деления работает только
-        # для степеней двойки. Сообщение своё — его и прочитает тот,
-        # кто ошибётся с ёмкостью.
-        comptime assert (
-            Self.capacity & (Self.capacity - 1)
-        ) == 0, "ёмкость кольца должна быть степенью двойки"
         self.data = Array[Int, Self.capacity](fill=0)
         self.count = 0
 
@@ -28,7 +23,8 @@ struct Ring[capacity: Int](Copyable, Movable) where capacity > 0:
         return result^
 
     def push(mut self, value: Int):
-        # Быстрый остаток: работает благодаря той самой степени двойки.
+        # Быстрый остаток вместо деления: работает только благодаря
+        # степени двойки, которую гарантирует второе условие.
         self.data[self.count & (Self.capacity - 1)] = value
         self.count += 1
 
@@ -40,9 +36,13 @@ struct Ring[capacity: Int](Copyable, Movable) where capacity > 0:
         # самой структуры — своего where здесь писать не нужно.
         return describe[Self.capacity]()
 
-    def window[start: Int, end: Int](
-        self,
-    ) -> Array[Int, end - start] where end > start and end <= Self.capacity:
+    def window[
+        start: Int, end: Int
+    ](self) -> Array[Int, end - start] where (
+        end > start
+    ) else "окно не может быть пустым" where (
+        end <= Self.capacity
+    ) else "окно выходит за пределы кольца":
         """Кусок буфера. Оба условия проверяются при сборке."""
         var result = Array[Int, end - start](fill=0)
         comptime for i in range(end - start):
@@ -67,12 +67,9 @@ def main():
     var part = ring.window[2, 5]()
     print("окно [2, 5):", part[0], part[1], part[2])
 
-    # Ни одна из этих строк не соберётся:
+    # Ни одна из этих строк не соберётся — и каждая скажет, почему:
     #
-    #   var zero = Ring[0]()        # violated constraint: (capacity > Int(0))
-    #   var odd = Ring[6]()         # ёмкость кольца должна быть степенью двойки
-    #   var bad = ring.window[5, 2]()   # violated constraint (составное, см. ниже)
-    #
-    # Компилятор печатает составное условие как вложенное:
-    #   expected '(end <= capacity) if (end > start) else (end > start)'
+    #   var zero = Ring[0]()            # ёмкость кольца должна быть положительной
+    #   var odd = Ring[6]()             # ёмкость кольца должна быть степенью двойки
+    #   var bad = ring.window[5, 2]()   # окно не может быть пустым
     print("три ошибки поймались бы при сборке, а не при запуске")
